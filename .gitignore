@@ -1,0 +1,15 @@
+# Xcode build and user state
+build/
+build-ios/
+build-release/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+
+# macOS metadata
+.DS_Store
+
+# Swift and editor artifacts
+.swiftpm/
+.build/
+*.swp

@@ -1,0 +1,7 @@
+# Bundled operational routing
+
+1. `traced-input.json` is an exact copy of the user's newest saved draft:1338nodes(819aircraft+519service),1734edges. Source SHA256bcecfa2c2f2e66e03586ea2e76371ba8a60319ca66ca5835ccf99005bd493a32. Original saved draft was never modified.
+2. `../../AirTrafficControl/airport-routes.json` is the derived runtime graph:1466nodes,1900edges,16runway pins. Every source node/edge remains. Gate spurs are added around approximate roof/apron polygons; full physical aircraft/airport survey accuracy is not claimed. Actual ground avoidance uses model silhouettes rather than broad ellipses, which incorrectly blocked the military parallel taxiway.
+3. `provenance.json` records both hashes/counts. Approved positions/access paths are in `../gate-layout-review/operational-layout.json` and SurfaceLayout.approvedGates. The older review and routes-snapshot.json remain unchanged as planning history.
+4. Rebuild developer geometry with scripts/build_operational_layout.py using Shapely in the isolated geometry environment; it defaults to this frozen source copy and accepts an explicit newer draft path. It updates the Swift approved-gate table and runs prepare_playable_routes.py. Runtime has no Python/AI/network dependency. Runway exit/hold pins must be off the runway centreline so taxi filtering cannot strand an arrival at an isolated rollout node.
+5. New tracing must be explicitly rebuilt/revalidated before shipping. Never overwrite the source draft with the generated graph. Temporary editor remains MacDebug only.

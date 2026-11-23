@@ -1,0 +1,127 @@
+"""Build game routes from the saved OpenStreetMap centerline survey (no network)."""
+import json,math,heapq,collections
+from pathlib import Path
+root=Path(__file__).resolve().parent.parent
+j=json.loads((root/'references/VIDP-osm.json').read_text())
+R=6378137
+origin_y=R*math.log(math.tan(math.pi/4+math.radians(28.59)/2))
+def point(ll):
+ lat,lon=ll
+ return [(R*math.radians(lon-77.045))/10,(origin_y-R*math.log(math.tan(math.pi/4+math.radians(lat)/2)))/10]
+p={n:point(ll) for n,ll in j['nodes'].items()}
+def dist(a,b):return math.dist(a,b)
+def fraction(q,a,b):
+ v=[b[i]-a[i] for i in range(2)]
+ return sum((q[i]-a[i])*v[i] for i in range(2))/sum(x*x for x in v) if any(v) else 0
+refs=['10/28','11R/29L','09/27','11L/29R']
+rrows=json.loads((root/'references/VIDP-runways.json').read_text())
+rways={w['tags']['ref']:w for w in j['ways'].values() if w['tags']['aeroway']=='runway' and 'ref' in w['tags']}
+runways=[]
+for ref in refs:
+ row=next(r for r in rrows if r['le_ident']+'/'+r['he_ident']==ref)
+ runways.append([point([float(row['le_latitude_deg']),float(row['le_longitude_deg'])]),point([float(row['he_latitude_deg']),float(row['he_longitude_deg'])])])
+def cross(a,b,c,d):
+ def sign(p,q,r):return (q[0]-p[0])*(r[1]-p[1])-(q[1]-p[1])*(r[0]-p[0])
+ return sign(a,b,c)*sign(a,b,d)<=0 and sign(c,d,a)*sign(c,d,b)<=0 and max(min(a[0],b[0]),min(c[0],d[0]))<=min(max(a[0],b[0]),max(c[0],d[0])) and max(min(a[1],b[1]),min(c[1],d[1]))<=min(max(a[1],b[1]),max(c[1],d[1]))
+adj=collections.defaultdict(dict)
+for w in j['ways'].values():
+ if w['tags']['aeroway']!='taxiway':continue
+ for a,b in zip(w['nodes'],w['nodes'][1:]):
+  assert a in p and b in p
+  weight=dist(p[a],p[b])+sum(200 for c,d in runways if cross(p[a],p[b],c,d))
+  adj[a][b]=weight;adj[b][a]=weight
+# Holding points are actual tagged nodes, not synthetic offsets.
+hold=[]
+for index,(start,end) in enumerate(runways):
+ candidates=[n for n,t in j['taggedNodes'].items() if t['aeroway']=='holding_position' and n in adj]
+ candidates=[n for n in candidates if (((end[0]-start[0])*(p[n][1]-start[1])-(end[1]-start[1])*(p[n][0]-start[0]))>0)==(index in [0,2])]
+ hold.append(min(candidates,key=lambda n:dist(p[n],start)))
+exitnodes=[]
+for ref,(start,end) in zip(refs,runways):
+ candidates=[n for n in rways[ref]['nodes'] if n in adj]
+ candidates=[n for n in candidates if fraction(p[n],start,end)>.45]
+ assert candidates,ref
+ exitnodes.append(min(candidates,key=lambda n:abs(fraction(p[n],start,end)-.78)))
+standids=['5497602249','5497599496','5497599493']
+# Attach each real stand position to its nearest centerline segment. Split the
+# edge at the exact perpendicular projection; retain a short apron connector.
+for n in standids:
+ q=p[n];best=None
+ for a in list(adj):
+  for b in list(adj[a]):
+   if a>=b:continue
+   t=max(0,min(1,fraction(q,p[a],p[b])))
+   v=[p[a][i]+t*(p[b][i]-p[a][i]) for i in range(2)]
+   candidate=(dist(q,v),a,b,v)
+   if best is None or candidate[0]<best[0]:best=candidate
+ distance,a,b,v=best
+ key='stand-join-'+n;p[key]=v
+ weight=adj[a].pop(b);adj[b].pop(a)
+ for u,vkey in [(a,key),(key,b),(key,n)]:
+  adj[u][vkey]=dist(p[u],p[vkey]);adj[vkey][u]=dist(p[u],p[vkey])
+ print('stand connector',n,round(distance*10,1),'projected metres')
+def path(a,b):
+ queue=[(0,a)];cost={a:0};prev={}
+ while queue:
+  cost_a,u=heapq.heappop(queue)
+  if cost_a!=cost[u]:continue
+  if u==b:
+   out=[u]
+   while u!=a:u=prev[u];out.append(u)
+   return list(reversed(out))
+  for v,w in adj[u].items():
+   new=cost_a+w
+   if new<cost.get(v,math.inf):cost[v]=new;prev[v]=u;heapq.heappush(queue,(new,v))
+ raise ValueError('Disconnected '+a+' -> '+b)
+routes={}
+for index,ref in enumerate(refs):
+ runwaynodes=[n for n in rways[ref]['nodes'] if n in adj]
+ entry=min(runwaynodes,key=lambda n:dist(p[n],p[hold[index]]))
+ routes[f'e{index}']=[p[k] for k in path(hold[index],entry)]
+for s,n in enumerate(standids):
+ for r in range(4):
+  routes[f'd{s}-{r}']=[p[k] for k in path(n,hold[r])]
+  routes[f'a{r}-{s}']=[p[k] for k in path(exitnodes[r],n)]
+for a in range(4):
+ for b in range(4):
+  if a!=b:routes[f'r{a}-{b}']=[p[k] for k in path(hold[a],hold[b])]
+footprints=[]
+for w in j['ways'].values():
+ if w['tags']['aeroway']=='terminal':footprints.append([p[n] for n in w['nodes']])
+# Compact decimal values retain sub-centimetre projected resolution.
+payload={'routes':routes,'holds':[p[n] for n in hold],'exits':[p[n] for n in exitnodes], 'stands':[p[n] for n in standids],'footprints':footprints,'taxiways':[[p[n] for n in w['nodes']] for w in j['ways'].values() if w['tags']['aeroway']=='taxiway']}
+def rounded(obj):
+ if isinstance(obj,float):return round(obj,6)
+ if isinstance(obj,list):return [rounded(v) for v in obj]
+ if isinstance(obj,dict):return {k:rounded(v) for k,v in obj.items()}
+ return obj
+raw=json.dumps(rounded(payload),separators=(',',':'))
+# Embed the generated dataset so desktop, iOS and CLI checks use the same data.
+(root/'AirTrafficControl/DelhiGroundData.swift').write_text('''// Generated by scripts/build_delhi_ground.py from references/VIDP-osm.json.
+// © OpenStreetMap contributors, ODbL: https://www.openstreetmap.org/copyright
+import Foundation
+
+enum DelhiGroundData {
+    struct Dataset: Decodable {
+        let routes: [String: [[Double]]]
+        let holds: [[Double]]
+        let exits: [[Double]]
+        let stands: [[Double]]
+        let footprints: [[[Double]]]
+        let taxiways: [[[Double]]]
+    }
+    private static let raw = #"""
+'''+raw+'''
+"""#
+    private static let data = try! JSONDecoder().decode(Dataset.self, from: Data(raw.utf8))
+    static func points(_ values: [[Double]]) -> [Point] { values.map { Point(x: $0[0], y: $0[1]) } }
+    static func route(_ key: String) -> [Point] { points(data.routes[key]!) }
+    static let holds: [Point] = points(data.holds)
+    static let exits: [Point] = points(data.exits)
+    static let stands: [Point] = points(data.stands)
+    static let footprints: [[Point]] = data.footprints.map(points)
+    static let taxiways: [[Point]] = data.taxiways.map(points)
+}
+''')
+print('Generated',len(routes),'centerline routes,',sum(map(len,routes.values())),'points')
+for r in range(4):print(refs[r],'hold',j['nodes'][hold[r]],'exit',j['nodes'][exitnodes[r]],'departure lengths',[round(sum(dist(a,b) for a,b in zip(routes[f'd{s}-{r}'],routes[f'd{s}-{r}'][1:]))*10) for s in range(3)])

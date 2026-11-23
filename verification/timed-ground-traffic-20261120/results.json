@@ -1,0 +1,49 @@
+{
+  "date": "2026-11-20",
+  "scope": "Saved proposal 1: shared timed ground traffic planner",
+  "fleet_completion": [
+    {
+      "seed": 17,
+      "departures": 9,
+      "completed": 9,
+      "losses": 0,
+      "elapsed_seconds_floor": 528
+    },
+    {
+      "seed": 9,
+      "departures": 9,
+      "completed": 9,
+      "losses": 0,
+      "elapsed_seconds_floor": 487
+    },
+    {
+      "seed": 42,
+      "departures": 9,
+      "completed": 9,
+      "losses": 0,
+      "elapsed_seconds_floor": 468
+    }
+  ],
+  "lifecycle": {
+    "arrival_ready_and_crews_home_seconds_floor": 231,
+    "full_departure_and_crews_home_seconds_floor": 417,
+    "resolved": 2,
+    "score": 200,
+    "losses": 0
+  },
+  "passed": [
+    "GroundTrafficPlannerChecks",
+    "ATCAuthorityChecks",
+    "SurfaceSafetyChecks",
+    "GroundTrafficLifecycleChecks",
+    "GroundTrafficCompletionChecks",
+    "CoreRenderingChecks (renderer source unchanged)",
+    "macOS Release arm64 build",
+    "iOS Simulator Debug build"
+  ],
+  "not_verified": [
+    "Physical-device gameplay",
+    "Global deadlock freedom",
+    "Long-duration continuous-traffic capacity"
+  ]
+}

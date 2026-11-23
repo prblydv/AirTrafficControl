@@ -1,0 +1,2 @@
+RUN:AirportRenderingChecks
+PASS:renderer loads package PNGs, independent image dimensions, stand names and runway labels for two simultaneous airports

@@ -1,0 +1,3 @@
+RUN:GroundTrafficLifecycleChecks
+PASS:centreline landing, scheduled taxi, automatic turnaround, ready state and all crews home 231
+PASS:serviced arrival departs through tug, scheduled taxi and tower takeoff; full lifecycle finishes 417

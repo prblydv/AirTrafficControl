@@ -1,0 +1,191 @@
+RUN:GroundTrafficPlannerChecks
+PASS:timed geometry and acceleration integrate to the exact route endpoint
+PASS:unjoined geometric junction conflict produces an explicit scheduled wait
+PASS:opposing entry is refused without an exit; connected independent detour remains usable
+PASS:stopped aircraft do not disappear; changed traffic/graph rejects stale commits; removal permits replanning
+PASS:search reaches a later safe interval instead of keeping one distance label per node
+PASS:manual hold freezes position, cancels schedules, resumes from actual position; reset clears plans
+PASS:unrelated schedules keep their slots; changed held footprints cancel dependent plans; removed blockers release traffic
+PASS:stationary heading changes invalidate affected footprint reservations
+RUN:ATCAuthorityChecks
+PASS:occupied/marked-closed runway takeoff accepted; conflicting aircraft collide with penalty
+PASS:landing follows tower clearance despite occupied runway/gate; no automatic go-around
+PASS:head-on taxi traffic waits safely without collision
+PASS:crossing requires ATC approval, then proceeds without occupancy/closure veto
+PASS:all departure clearances accepted together; taxi traffic remains safe
+PASS:all four centreline rollout fixes retained
+PASS:automatic turnaround and two-base crew home returns retained
+RUN:SurfaceSafetyChecks
+PASS:taxi head-on conflict waits without accident and resumes when clear
+PASS:apron/taxi/off-runway landing-exit overlap cannot cause accidents
+PASS:only active runway conflicts generate accidents
+PASS:high overflight above an active runway is not a runway occupant
+PASS:occupied runway accident remains takeoff
+PASS:occupied runway accident remains landing
+PASS:tower can still clear takeoff on occupied/marked-closed runway
+PASS:real north-terminal pair clears safely false
+PASS:real north-terminal pair clears safely true
+RUN:GroundTrafficCompletionChecks
+PROGRESS 17 0 0 plans 0 searches 0 cancels 0
+STATE DEL451 pushback Point(x: 635.7195, y: 398.40032) false nil false false 34
+STATE DEL830 pushback Point(x: 639.94431, y: 433.10385) false nil false false 34
+STATE DEL116 pushback Point(x: 713.16888, y: 471.40581) false nil false false 67
+STATE DEL602 pushback Point(x: 1109.76895, y: 326.66622) false nil false false 34
+STATE DEL917 pushback Point(x: 1139.07595, y: 333.07712) false nil false false 34
+STATE DEL305 pushback Point(x: 1144.9572, y: 294.49263) false nil false false 34
+STATE MIL301 taxiing Point(x: 887.9, y: 402.0) false nil false false 83
+STATE MIL302 taxiing Point(x: 909.0, y: 407.0) false nil false false 82
+STATE MIL303 taxiing Point(x: 860.0, y: 398.0) false nil false false 44
+PROGRESS 17 99 0 plans 3 searches 206 cancels 8
+STATE DEL451 taxiing Point(x: 616.3961, y: 399.37001) true nil false false 14
+STATE DEL830 takeoff Point(x: 581.3918842281162, y: 562.9729592481204) false nil false false 93
+STATE DEL116 taxiing Point(x: 747.94945, y: 569.51469) true Optional("DEL830") false false 15
+STATE DEL602 taxiing Point(x: 880.7708213156141, y: 297.58413011158336) false nil false false 12
+STATE DEL917 taxiing Point(x: 1133.10063, y: 357.90488) true Optional("DEL602") false false 34
+STATE DEL305 taxiing Point(x: 1105.15049, y: 272.67435) true Optional("MIL301") false false 13
+STATE MIL301 taxiing Point(x: 830.0867211089212, y: 268.13421581207183) false nil false false 28
+STATE MIL302 taxiing Point(x: 909.0, y: 407.0) true Optional("MIL301") false false 82
+STATE MIL303 taxiing Point(x: 860.0, y: 398.0) true nil false false 44
+PROGRESS 17 199 1 plans 2 searches 429 cancels 13
+STATE DEL451 taxiing Point(x: 616.3961, y: 399.37001) true Optional("MIL301") false false 14
+STATE DEL830 complete Point(x: 1812.0, y: 825.5492986769929) false nil false false 0
+STATE DEL116 takeoff Point(x: 695.9000979181618, y: 596.9341730982035) false nil false false 1
+STATE DEL602 climbing Point(x: 1652.6416967707066, y: 510.5284065242784) false nil false false 1
+STATE DEL917 taxiing Point(x: 899.864584028067, y: 302.4214633882621) false nil false false 13
+STATE DEL305 taxiing Point(x: 1105.15049, y: 272.67435) true Optional("MIL301") false false 13
+STATE MIL301 taxiing Point(x: 683.8926810249685, y: 309.9670211032974) false nil false false 1
+STATE MIL302 taxiing Point(x: 909.0, y: 407.0) true Optional("MIL301") false false 82
+STATE MIL303 taxiing Point(x: 860.0, y: 398.0) true Optional("MIL301") false false 44
+PROGRESS 17 299 4 plans 1 searches 550 cancels 19
+STATE DEL451 takeoff Point(x: 729.070299289178, y: 303.8569541377875) false nil false false 1
+STATE DEL830 complete Point(x: 1812.0, y: 825.5492986769929) false nil false false 0
+STATE DEL116 complete Point(x: 1812.0, y: 825.549298677014) false nil false false 0
+STATE DEL602 complete Point(x: 1812.0, y: 546.6809595349364) false nil false false 0
+STATE DEL917 queued Point(x: 767.7418303806985, y: 291.8012470565525) false nil false false 0
+STATE DEL305 taxiing Point(x: 1105.15049, y: 272.67435) true Optional("MIL301") false false 13
+STATE MIL301 complete Point(x: 1812.0, y: 543.152736128606) false nil false false 0
+STATE MIL302 taxiing Point(x: 946.3253760172673, y: 390.86244068332655) false nil false false 43
+STATE MIL303 taxiing Point(x: 795.5930313718385, y: 360.69615957334895) false nil false false 8
+PROGRESS 17 400 6 plans 2 searches 573 cancels 22
+STATE DEL451 complete Point(x: 1812.0, y: 543.1527361286003) false nil false false 0
+STATE DEL830 complete Point(x: 1812.0, y: 825.5492986769929) false nil false false 0
+STATE DEL116 complete Point(x: 1812.0, y: 825.549298677014) false nil false false 0
+STATE DEL602 complete Point(x: 1812.0, y: 546.6809595349364) false nil false false 0
+STATE DEL917 complete Point(x: 1812.0, y: 546.680959534934) false nil false false 0
+STATE DEL305 taxiing Point(x: 776.1442623488209, y: 269.21045855369687) false nil false false 6
+STATE MIL301 complete Point(x: 1812.0, y: 543.152736128606) false nil false false 0
+STATE MIL302 taxiing Point(x: 802.8240204716109, y: 362.55636412753347) false nil false false 8
+STATE MIL303 takeoff Point(x: 730.4959091964893, y: 304.17197222008775) false nil false false 1
+PROGRESS 17 500 8 plans 0 searches 575 cancels 26
+STATE DEL451 complete Point(x: 1812.0, y: 543.1527361286003) false nil false false 0
+STATE DEL830 complete Point(x: 1812.0, y: 825.5492986769929) false nil false false 0
+STATE DEL116 complete Point(x: 1812.0, y: 825.549298677014) false nil false false 0
+STATE DEL602 complete Point(x: 1812.0, y: 546.6809595349364) false nil false false 0
+STATE DEL917 complete Point(x: 1812.0, y: 546.680959534934) false nil false false 0
+STATE DEL305 complete Point(x: 1812.0, y: 546.680959534934) false nil false false 0
+STATE MIL301 complete Point(x: 1812.0, y: 543.152736128606) false nil false false 0
+STATE MIL302 takeoff Point(x: 741.2953924669426, y: 306.55834207641703) false nil false false 1
+STATE MIL303 complete Point(x: 1812.0, y: 543.1527361286077) false nil false false 0
+SEED 17 TIME 528 COMPLETE 9 LOSSES 0
+PROGRESS 9 0 0 plans 0 searches 0 cancels 0
+STATE DEL451 pushback Point(x: 690.70512, y: 508.10029) false nil false false 34
+STATE DEL830 pushback Point(x: 1117.32848, y: 292.10838) false nil false false 34
+STATE DEL116 pushback Point(x: 639.94431, y: 433.10385) false nil false false 34
+STATE DEL602 pushback Point(x: 1109.76895, y: 326.66622) false nil false false 34
+STATE DEL917 pushback Point(x: 1139.07595, y: 333.07712) false nil false false 34
+STATE DEL305 pushback Point(x: 1144.9572, y: 294.49263) false nil false false 34
+STATE MIL301 taxiing Point(x: 887.9, y: 402.0) false nil false false 83
+STATE MIL302 taxiing Point(x: 909.0, y: 407.0) false nil false false 82
+STATE MIL303 taxiing Point(x: 860.0, y: 398.0) false nil false false 44
+PROGRESS 9 99 0 plans 2 searches 199 cancels 11
+STATE DEL451 takeoff Point(x: 703.0443835619296, y: 604.9772625551752) false nil false false 1
+STATE DEL830 taxiing Point(x: 865.3424116066911, y: 293.6037818245868) false nil false false 7
+STATE DEL116 queued Point(x: 577.2836049385993, y: 556.7681662517863) false nil false false 0
+STATE DEL602 taxiing Point(x: 1104.15957, y: 350.69187) true Optional("MIL301") false false 14
+STATE DEL917 taxiing Point(x: 1133.10063, y: 357.90488) true Optional("DEL602") false false 22
+STATE DEL305 taxiing Point(x: 1105.15049, y: 272.67435) true Optional("MIL301") false false 397
+STATE MIL301 taxiing Point(x: 830.0867211089212, y: 268.13421581207183) false nil false false 28
+STATE MIL302 taxiing Point(x: 909.0, y: 407.0) true Optional("MIL301") false false 82
+STATE MIL303 taxiing Point(x: 860.0, y: 398.0) true nil false false 44
+PROGRESS 9 199 3 plans 3 searches 377 cancels 14
+STATE DEL451 complete Point(x: 1812.0, y: 810.486071321403) false nil false false 0
+STATE DEL830 complete Point(x: 1812.0, y: 250.21565462704203) false nil false false 0
+STATE DEL116 complete Point(x: 1812.0, y: 825.5492986770215) false nil false false 0
+STATE DEL602 taxiing Point(x: 856.2593188350102, y: 278.33942137105925) false nil false false 3
+STATE DEL917 taxiing Point(x: 1133.10063, y: 357.90488) true Optional("DEL602") false false 22
+STATE DEL305 queued Point(x: 767.7418303806985, y: 291.8012470565525) false nil false false 0
+STATE MIL301 taxiing Point(x: 683.8926810249685, y: 309.9670211032974) false nil false false 1
+STATE MIL302 taxiing Point(x: 909.0, y: 407.0) true Optional("MIL301") false false 82
+STATE MIL303 taxiing Point(x: 860.0, y: 398.0) true Optional("MIL301") false false 44
+PROGRESS 9 299 5 plans 2 searches 442 cancels 21
+STATE DEL451 complete Point(x: 1812.0, y: 810.486071321403) false nil false false 0
+STATE DEL830 complete Point(x: 1812.0, y: 250.21565462704203) false nil false false 0
+STATE DEL116 complete Point(x: 1812.0, y: 825.5492986770215) false nil false false 0
+STATE DEL602 complete Point(x: 1812.0, y: 250.21565462704203) false nil false false 0
+STATE DEL917 taxiing Point(x: 814.2383231173216, y: 267.61088176620484) false nil false false 7
+STATE DEL305 complete Point(x: 1812.0, y: 546.6809595349364) false nil false false 0
+STATE MIL301 climbing Point(x: 1321.1012245335094, y: 434.6784683377384) false nil false false 1
+STATE MIL302 taxiing Point(x: 946.3253760172553, y: 390.86244068333593) true Optional("DEL917") false false 43
+STATE MIL303 taxiing Point(x: 711.4964430446342, y: 339.0654300641591) false nil false false 5
+PROGRESS 9 400 7 plans 0 searches 454 cancels 26
+STATE DEL451 complete Point(x: 1812.0, y: 810.486071321403) false nil false false 0
+STATE DEL830 complete Point(x: 1812.0, y: 250.21565462704203) false nil false false 0
+STATE DEL116 complete Point(x: 1812.0, y: 825.5492986770215) false nil false false 0
+STATE DEL602 complete Point(x: 1812.0, y: 250.21565462704203) false nil false false 0
+STATE DEL917 takeoff Point(x: 780.9584742140606, y: 311.68326518179447) false nil false false 2
+STATE DEL305 complete Point(x: 1812.0, y: 546.6809595349364) false nil false false 0
+STATE MIL301 complete Point(x: 1812.0, y: 543.1527361285931) false nil false false 0
+STATE MIL302 queued Point(x: 681.07752834564, y: 311.29962344548807) false nil false false 0
+STATE MIL303 complete Point(x: 1812.0, y: 543.1527361286077) false nil false false 0
+SEED 9 TIME 487 COMPLETE 9 LOSSES 0
+PROGRESS 42 0 0 plans 0 searches 0 cancels 0
+STATE DEL451 pushback Point(x: 639.94431, y: 433.10385) false nil false false 34
+STATE DEL830 pushback Point(x: 644.94677, y: 487.08868) false nil false false 34
+STATE DEL116 pushback Point(x: 718.51, y: 522.22701) false nil false false 34
+STATE DEL602 pushback Point(x: 1109.76895, y: 326.66622) false nil false false 34
+STATE DEL917 pushback Point(x: 1139.07595, y: 333.07712) false nil false false 34
+STATE DEL305 pushback Point(x: 1144.9572, y: 294.49263) false nil false false 34
+STATE MIL301 taxiing Point(x: 887.9, y: 402.0) false nil false false 83
+STATE MIL302 taxiing Point(x: 909.0, y: 407.0) false nil false false 82
+STATE MIL303 taxiing Point(x: 860.0, y: 398.0) false nil false false 44
+PROGRESS 42 99 0 plans 3 searches 221 cancels 8
+STATE DEL451 taxiing Point(x: 610.60878, y: 426.65282) true Optional("DEL830") false false 13
+STATE DEL830 taxiing Point(x: 579.72156, y: 483.76083) true Optional("DEL116") false false 12
+STATE DEL116 takeoff Point(x: 581.1189581814896, y: 562.5792672639648) false nil false false 98
+STATE DEL602 taxiing Point(x: 881.9138517672792, y: 297.87901852757085) false nil false false 12
+STATE DEL917 taxiing Point(x: 1133.10063, y: 357.90488) true Optional("DEL602") false false 34
+STATE DEL305 taxiing Point(x: 1105.15049, y: 272.67435) true Optional("MIL301") false false 13
+STATE MIL301 taxiing Point(x: 830.0867211089212, y: 268.13421581207183) false nil false false 28
+STATE MIL302 taxiing Point(x: 909.0, y: 407.0) true Optional("MIL301") false false 82
+STATE MIL303 taxiing Point(x: 860.0, y: 398.0) true nil false false 44
+PROGRESS 42 199 1 plans 3 searches 438 cancels 13
+STATE DEL451 taxiing Point(x: 595.57616727985, y: 497.2727212764792) false nil false false 9
+STATE DEL830 climbing Point(x: 1046.4935162173247, y: 668.747599658018) false nil false false 1
+STATE DEL116 complete Point(x: 1812.0, y: 825.549298677043) false nil false false 0
+STATE DEL602 climbing Point(x: 1598.809604254647, y: 498.31587953996933) false nil false false 1
+STATE DEL917 taxiing Point(x: 916.1579971320493, y: 306.5159339795532) false nil false false 13
+STATE DEL305 taxiing Point(x: 1105.15049, y: 272.67435) true Optional("MIL301") false false 13
+STATE MIL301 taxiing Point(x: 683.8926810249685, y: 309.9670211032974) false nil false false 1
+STATE MIL302 taxiing Point(x: 909.0, y: 407.0) true Optional("MIL301") false false 82
+STATE MIL303 taxiing Point(x: 860.0, y: 398.0) true Optional("MIL301") false false 44
+PROGRESS 42 299 5 plans 3 searches 496 cancels 21
+STATE DEL451 complete Point(x: 1812.0, y: 825.5492986770038) false nil false false 0
+STATE DEL830 complete Point(x: 1812.0, y: 825.5492986769832) false nil false false 0
+STATE DEL116 complete Point(x: 1812.0, y: 825.549298677043) false nil false false 0
+STATE DEL602 complete Point(x: 1812.0, y: 546.6809595349364) false nil false false 0
+STATE DEL917 climbing Point(x: 1255.1424049311117, y: 420.3503992995618) false nil false false 1
+STATE DEL305 taxiing Point(x: 1005.3625603177401, y: 273.0614364113856) false nil false false 10
+STATE MIL301 complete Point(x: 1812.0, y: 543.152736128606) false nil false false 0
+STATE MIL302 taxiing Point(x: 944.6240098082136, y: 392.1932122725864) false nil false false 17
+STATE MIL303 takeoff Point(x: 682.8806889027295, y: 310.4460654841854) false nil false false 167
+PROGRESS 42 400 7 plans 1 searches 498 cancels 25
+STATE DEL451 complete Point(x: 1812.0, y: 825.5492986770038) false nil false false 0
+STATE DEL830 complete Point(x: 1812.0, y: 825.5492986769832) false nil false false 0
+STATE DEL116 complete Point(x: 1812.0, y: 825.549298677043) false nil false false 0
+STATE DEL602 complete Point(x: 1812.0, y: 546.6809595349364) false nil false false 0
+STATE DEL917 complete Point(x: 1812.0, y: 546.680959534934) false nil false false 0
+STATE DEL305 climbing Point(x: 1278.7280780742437, y: 425.70112330527746) false nil false false 1
+STATE MIL301 complete Point(x: 1812.0, y: 543.152736128606) false nil false false 0
+STATE MIL302 takeoff Point(x: 683.6037279035745, y: 310.1038021770844) false nil false false 167
+STATE MIL303 complete Point(x: 1812.0, y: 543.1527361286077) false nil false false 0
+SEED 42 TIME 468 COMPLETE 9 LOSSES 0

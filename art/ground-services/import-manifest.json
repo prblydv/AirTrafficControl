@@ -1,0 +1,226 @@
+[
+  {
+    "asset": "GroundService-01",
+    "sourceBounds": [
+      86,
+      21,
+      231,
+      302
+    ],
+    "size": [
+      145,
+      281
+    ],
+    "foregroundPixels": 31609
+  },
+  {
+    "asset": "GroundService-02",
+    "sourceBounds": [
+      391,
+      5,
+      548,
+      307
+    ],
+    "size": [
+      157,
+      302
+    ],
+    "foregroundPixels": 40193
+  },
+  {
+    "asset": "GroundService-03",
+    "sourceBounds": [
+      708,
+      15,
+      859,
+      304
+    ],
+    "size": [
+      151,
+      289
+    ],
+    "foregroundPixels": 34288
+  },
+  {
+    "asset": "GroundService-04",
+    "sourceBounds": [
+      1025,
+      17,
+      1170,
+      303
+    ],
+    "size": [
+      145,
+      286
+    ],
+    "foregroundPixels": 31890
+  },
+  {
+    "asset": "GroundService-05",
+    "sourceBounds": [
+      87,
+      319,
+      225,
+      619
+    ],
+    "size": [
+      138,
+      300
+    ],
+    "foregroundPixels": 34463
+  },
+  {
+    "asset": "GroundService-06",
+    "sourceBounds": [
+      399,
+      324,
+      543,
+      623
+    ],
+    "size": [
+      144,
+      299
+    ],
+    "foregroundPixels": 34796
+  },
+  {
+    "asset": "GroundService-07",
+    "sourceBounds": [
+      715,
+      320,
+      852,
+      623
+    ],
+    "size": [
+      137,
+      303
+    ],
+    "foregroundPixels": 35630
+  },
+  {
+    "asset": "GroundService-08",
+    "sourceBounds": [
+      1002,
+      313,
+      1192,
+      623
+    ],
+    "size": [
+      190,
+      310
+    ],
+    "foregroundPixels": 46260
+  },
+  {
+    "asset": "GroundService-09",
+    "sourceBounds": [
+      87,
+      662,
+      225,
+      914
+    ],
+    "size": [
+      138,
+      252
+    ],
+    "foregroundPixels": 24389
+  },
+  {
+    "asset": "GroundService-10",
+    "sourceBounds": [
+      393,
+      634,
+      543,
+      923
+    ],
+    "size": [
+      150,
+      289
+    ],
+    "foregroundPixels": 28767
+  },
+  {
+    "asset": "GroundService-11",
+    "sourceBounds": [
+      710,
+      634,
+      848,
+      930
+    ],
+    "size": [
+      138,
+      296
+    ],
+    "foregroundPixels": 28969
+  },
+  {
+    "asset": "GroundService-12",
+    "sourceBounds": [
+      1030,
+      633,
+      1164,
+      933
+    ],
+    "size": [
+      134,
+      300
+    ],
+    "foregroundPixels": 31581
+  },
+  {
+    "asset": "GroundService-13",
+    "sourceBounds": [
+      83,
+      943,
+      232,
+      1237
+    ],
+    "size": [
+      149,
+      294
+    ],
+    "foregroundPixels": 35393
+  },
+  {
+    "asset": "GroundService-14",
+    "sourceBounds": [
+      393,
+      949,
+      548,
+      1237
+    ],
+    "size": [
+      155,
+      288
+    ],
+    "foregroundPixels": 35744
+  },
+  {
+    "asset": "GroundService-15",
+    "sourceBounds": [
+      704,
+      943,
+      862,
+      1238
+    ],
+    "size": [
+      158,
+      295
+    ],
+    "foregroundPixels": 30812
+  },
+  {
+    "asset": "GroundService-16",
+    "sourceBounds": [
+      978,
+      949,
+      1217,
+      1240
+    ],
+    "size": [
+      239,
+      291
+    ],
+    "foregroundPixels": 44206
+  }
+]

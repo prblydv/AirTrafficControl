@@ -1,0 +1,7 @@
+# Airport package verification — 20 November 2026
+
+1. Saved proposal 2 implemented. Complete runtime airport data is loaded from versioned packages; the app catalog selects the default. See ../../AIRPORT_PACKAGES.md for the schema and authoring instructions.
+2. AirportPackageChecks passes byte preservation, a structurally different 900×600 vertical-runway airport, independent simulation/cache contexts, separate commercial cargo purpose, rotation/renaming/different image dimensions, and invalid schema/resource/reference rejection. Its cargo departure plus passenger arrival/services/departure completes in ~522s with score300, no losses and every crew home. The fixture is synthetic developer data, not a new real-airport release.
+3. Existing planner, runway-authority, surface safety and full Delhi lifecycle checks pass. All27 Delhi departures across seeds17/9/42 finish without losses in ~528/487/468s, matching proposal1. Delhi arrival/services/departure still completes in ~417s.
+4. AirportRenderingChecks loads package PNGs and verifies independent dimensions, runway labels and stands for two scenes. Mac Debug/Release arm64 and iOS Simulator builds pass. Resource folders were checked in the Mac app bundle. No app/tracer restart or physical-device gameplay test performed.
+5. Saved source draft, original runtime graph and background hashes are unchanged; Delhi's packaged graph/background are byte-identical copies. The authoring scripts were syntax-checked, not run against the original traces during migration. Detailed logs and hashes are in this directory.

@@ -1,0 +1,282 @@
+[
+  {
+    "asset": "Aircraft-01",
+    "sourceBounds": [
+      22,
+      13,
+      298,
+      304
+    ],
+    "size": [
+      276,
+      291
+    ],
+    "foregroundPixels": 18304
+  },
+  {
+    "asset": "Aircraft-02",
+    "sourceBounds": [
+      319,
+      39,
+      556,
+      297
+    ],
+    "size": [
+      237,
+      258
+    ],
+    "foregroundPixels": 14228
+  },
+  {
+    "asset": "Aircraft-03",
+    "sourceBounds": [
+      561,
+      27,
+      841,
+      305
+    ],
+    "size": [
+      280,
+      278
+    ],
+    "foregroundPixels": 21873
+  },
+  {
+    "asset": "Aircraft-04",
+    "sourceBounds": [
+      853,
+      33,
+      1093,
+      300
+    ],
+    "size": [
+      240,
+      267
+    ],
+    "foregroundPixels": 17514
+  },
+  {
+    "asset": "Aircraft-05",
+    "sourceBounds": [
+      1110,
+      39,
+      1375,
+      302
+    ],
+    "size": [
+      265,
+      263
+    ],
+    "foregroundPixels": 15848
+  },
+  {
+    "asset": "Aircraft-06",
+    "sourceBounds": [
+      41,
+      325,
+      288,
+      587
+    ],
+    "size": [
+      247,
+      262
+    ],
+    "foregroundPixels": 16166
+  },
+  {
+    "asset": "Aircraft-07",
+    "sourceBounds": [
+      330,
+      337,
+      555,
+      583
+    ],
+    "size": [
+      225,
+      246
+    ],
+    "foregroundPixels": 13886
+  },
+  {
+    "asset": "Aircraft-08",
+    "sourceBounds": [
+      593,
+      342,
+      813,
+      585
+    ],
+    "size": [
+      220,
+      243
+    ],
+    "foregroundPixels": 12724
+  },
+  {
+    "asset": "Aircraft-09",
+    "sourceBounds": [
+      870,
+      347,
+      1075,
+      581
+    ],
+    "size": [
+      205,
+      234
+    ],
+    "foregroundPixels": 11392
+  },
+  {
+    "asset": "Aircraft-10",
+    "sourceBounds": [
+      1151,
+      364,
+      1337,
+      577
+    ],
+    "size": [
+      186,
+      213
+    ],
+    "foregroundPixels": 10069
+  },
+  {
+    "asset": "Aircraft-11",
+    "sourceBounds": [
+      56,
+      619,
+      270,
+      830
+    ],
+    "size": [
+      214,
+      211
+    ],
+    "foregroundPixels": 10982
+  },
+  {
+    "asset": "Aircraft-12",
+    "sourceBounds": [
+      346,
+      629,
+      530,
+      821
+    ],
+    "size": [
+      184,
+      192
+    ],
+    "foregroundPixels": 8944
+  },
+  {
+    "asset": "Aircraft-13",
+    "sourceBounds": [
+      616,
+      624,
+      786,
+      822
+    ],
+    "size": [
+      170,
+      198
+    ],
+    "foregroundPixels": 8880
+  },
+  {
+    "asset": "Aircraft-14",
+    "sourceBounds": [
+      867,
+      648,
+      1080,
+      822
+    ],
+    "size": [
+      213,
+      174
+    ],
+    "foregroundPixels": 10212
+  },
+  {
+    "asset": "Aircraft-15",
+    "sourceBounds": [
+      1139,
+      621,
+      1348,
+      826
+    ],
+    "size": [
+      209,
+      205
+    ],
+    "foregroundPixels": 12075
+  },
+  {
+    "asset": "Aircraft-16",
+    "sourceBounds": [
+      26,
+      861,
+      297,
+      1097
+    ],
+    "size": [
+      271,
+      236
+    ],
+    "foregroundPixels": 20830
+  },
+  {
+    "asset": "Aircraft-17",
+    "sourceBounds": [
+      318,
+      890,
+      561,
+      1069
+    ],
+    "size": [
+      243,
+      179
+    ],
+    "foregroundPixels": 12914
+  },
+  {
+    "asset": "Aircraft-18",
+    "sourceBounds": [
+      576,
+      857,
+      827,
+      1099
+    ],
+    "size": [
+      251,
+      242
+    ],
+    "foregroundPixels": 15074
+  },
+  {
+    "asset": "Aircraft-19",
+    "sourceBounds": [
+      893,
+      870,
+      1053,
+      1081
+    ],
+    "size": [
+      160,
+      211
+    ],
+    "foregroundPixels": 13670
+  },
+  {
+    "asset": "Aircraft-20",
+    "sourceBounds": [
+      1168,
+      879,
+      1323,
+      1081
+    ],
+    "size": [
+      155,
+      202
+    ],
+    "foregroundPixels": 12118
+  }
+]
