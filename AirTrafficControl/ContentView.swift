@@ -110,7 +110,10 @@ struct ContentView: View {
                     Text(String(format:"%.1f NM · %.0f ft",simulation.rangeNM(for:a),a.altitude))
                         .font(.system(size:11,design:.monospaced)).foregroundStyle(.secondary)
                 }
-                if a.waitingForTraffic {Text(a.blockedBy.map{"Giving way to \($0)"} ?? "Waiting for taxi access").font(.caption).foregroundStyle(.orange)}
+                if let waiting=a.groundWaitingState {
+                    let queue=a.departureQueuePosition.map{" · Queue \($0)"} ?? ""
+                    Text(waiting.rawValue+queue).font(.caption).foregroundStyle(.orange)
+                }
                 if a.readyToDepart { Text("↑ READY FOR PUSHBACK · \(simulation.surface.gates[a.stand].name)").font(.caption).foregroundStyle(mint) }
                 let canClear=a.phase == .parked || a.phase == .queued || (!a.departure && [.inbound,.holding,.approach].contains(a.phase))
                 ForEach(simulation.clearanceRunways(for:a)) { r in
@@ -164,7 +167,8 @@ struct ContentView: View {
                         Image(a.model.assetName).resizable().scaledToFit().frame(width:25,height:30)
                         VStack(alignment:.leading,spacing:3) {
                             Text(a.id).font(.system(size:12,weight:.bold,design:.monospaced))
-                            Text(a.type+" · "+(a.crossingRequest != nil ? "Crossing requested" : a.waitingForTraffic ? "Waiting for traffic" : a.phase.rawValue)).font(.system(size:10)).foregroundStyle(.secondary)
+                            let queue=a.departureQueuePosition.map{" · Q\($0)"} ?? ""
+                            Text(a.type+" · "+(a.crossingRequest != nil ? "Crossing requested" : a.groundWaitingState?.rawValue ?? a.phase.rawValue)+queue).font(.system(size:10)).foregroundStyle(.secondary)
                         }
                         Spacer()
                         Image(systemName:a.phase == .crashed ? "flame.fill" : a.departure ? "arrow.up.right" : "arrow.down.right").foregroundStyle(a.phase == .crashed ? Color.orange : mint)

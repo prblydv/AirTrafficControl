@@ -315,6 +315,13 @@ enum GroundTrafficPlanner {
                     let edge=graph.edges[l.key.edge],edgeSpeed=min(speed,edge.speedLimit ?? speed,motion.turnSpeed(from:p.heading,to:l.heading,over:graph.nodes[l.key.node].distance(to:graph.nodes[p.key.node])))
                     let cap=nodeSpeeds[k]
                     nodeSpeeds[k]=min(cap,edgeSpeed)
+                    if k>1 {nodeSpeeds[k-1]=min(nodeSpeeds[k-1],edgeSpeed)}
+                }
+                if route.count>1 {
+                    for k in 1..<route.count {
+                        let d=graph.nodes[labels[route[k]].key.node].distance(to:graph.nodes[labels[route[k-1]].key.node])
+                        nodeSpeeds[k]=min(nodeSpeeds[k],sqrt(max(0,nodeSpeeds[k-1]*nodeSpeeds[k-1]+2*motion.acceleration*d)))
+                    }
                 }
                 if route.count>1 {
                     for k in stride(from:route.count-2,through:0,by:-1) {
@@ -322,11 +329,14 @@ enum GroundTrafficPlanner {
                         nodeSpeeds[k]=min(nodeSpeeds[k],sqrt(max(0,nodeSpeeds[k+1]*nodeSpeeds[k+1]+2*motion.deceleration*d)))
                     }
                 }
+                var scheduleTime=snapshot.now
                 for k in 1..<route.count {
                     let i=route[k],l=labels[i],p=labels[l.parent!],edgeSpeed=min(speed,graph.edges[l.key.edge].speedLimit ?? speed)
                     let d=graph.nodes[l.key.node].distance(to:graph.nodes[p.key.node])
                     let travel=duration(d,entrySpeed:nodeSpeeds[k-1],exitSpeed:nodeSpeeds[k],speed:edgeSpeed,acceleration:motion.acceleration,deceleration:motion.deceleration)
-                    legs.append(.init(from:graph.nodes[p.key.node],to:graph.nodes[l.key.node],start:l.depart,end:l.depart+travel,heading:l.heading,cruise:edgeSpeed,acceleration:motion.acceleration,deceleration:motion.deceleration,entrySpeed:nodeSpeeds[k-1],exitSpeed:nodeSpeeds[k]))
+                    let start=max(scheduleTime,l.depart)
+                    legs.append(.init(from:graph.nodes[p.key.node],to:graph.nodes[l.key.node],start:start,end:start+travel,heading:l.heading,cruise:edgeSpeed,acceleration:motion.acceleration,deceleration:motion.deceleration,entrySpeed:nodeSpeeds[k-1],exitSpeed:nodeSpeeds[k]))
+                    scheduleTime=start+travel
                 }
                 let plan=GroundTrafficPlan(owner:flight.id,revision:snapshot.revision,phase:flight.phase,start:flight.position,initialHeading:flight.heading,legs:legs,horizon:snapshot.horizon)
                 if validated(plan,flight:flight,against:snapshot) {return plan}

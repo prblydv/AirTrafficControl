@@ -20,6 +20,13 @@ import Foundation
         var dense=RoadGraph();dense.addLane((0...10).map{Point(x:Double($0)*12,y:0)})
         let densePlan=GroundTrafficPlanner.plan(flight:a,graph:dense,target:target,snapshot:snapshot())!
         precondition(abs(clear.finish-densePlan.finish)<0.001,"straight-route ETA changed with edge density: \(clear.finish) vs \(densePlan.finish)")
+        var shortFlight=flight("SHORT",Point(x:0,y:20));shortFlight.heading=0
+        var short=RoadGraph();short.addLane([shortFlight.position,Point(x:10,y:20)])
+        var shortDense=RoadGraph();shortDense.addLane((0...10).map{Point(x:Double($0),y:20)})
+        let shortPlan=GroundTrafficPlanner.plan(flight:shortFlight,graph:short,target:Point(x:10,y:20),snapshot:snapshot())!
+        let shortDensePlan=GroundTrafficPlanner.plan(flight:shortFlight,graph:shortDense,target:Point(x:10,y:20),snapshot:snapshot())!
+        precondition(abs(shortPlan.finish-3.65)<0.01,"unexpected 10-unit straight ETA: \(shortPlan.finish)")
+        precondition(abs(shortPlan.finish-shortDensePlan.finish)<0.001,"10-unit straight ETA changed with edge density: \(shortPlan.finish) vs \(shortDensePlan.finish)")
         
         var bend=RoadGraph();bend.addLane([Point(x:0,y:0),Point(x:60,y:0),Point(x:60,y:60)])
         let bent=GroundTrafficPlanner.plan(flight:a,graph:bend,target:Point(x:60,y:60),snapshot:snapshot())!
@@ -30,6 +37,7 @@ import Foundation
         precondition(taxiMotion.stoppingDistance(at:11)>24,"Fallback lookahead is shorter than reaction plus braking distance")
         precondition(taxiMotion.turnSpeed(from:0,to:.pi/2,over:10)<taxiMotion.cruiseSpeed)
         precondition(bent.legs[0].exitSpeed < taxiMotion.cruiseSpeed,"bend speed limit")
+        precondition(bent.finish>clear.finish,"equal-length bend should take longer than a clear straight")
         for leg in clear.legs where leg.distance>0.001 {
             precondition(abs(leg.travelled(at:leg.end)-leg.distance)<0.0001, "leg endpoint integration: \(leg.travelled(at:leg.end)) / \(leg.distance)")
             precondition(abs(leg.speed(at:leg.start)-leg.entrySpeed)<0.001 && abs(leg.speed(at:leg.end)-leg.exitSpeed)<0.001)
@@ -119,6 +127,32 @@ import Foundation
         rotated.tick(0.1)
         precondition(rotated.groundTrafficPlans["MOVING"]==nil && rotated.aircraft[1].position==rotationStop,"Rotated stationary footprint failed to withdraw a dependent plan")
         print("PASS:stationary heading changes invalidate affected footprint reservations")
+
+        let departureQueue=Simulation(seed:9,continuousTraffic:false)
+        let queueRunway=0,queueGate=departureQueue.surface.gates[12],queueModel=AircraftCatalog.model("07")
+        let queueEntry=departureQueue.surface.departureEntry(for:queueModel,runway:queueRunway,from:queueGate.port)
+        let queueRoute=departureQueue.surface.taxiRoute(from:queueGate.port,to:queueEntry.hold)
+        precondition(!queueRoute.isEmpty,"departure queue fixture has no taxi route")
+        var leader=Aircraft(id:"LEADER",modelID:"07",departure:true,stand:12,position:queueEntry.hold,phase:.queued,runway:queueRunway)
+        leader.departureEntry=queueEntry.lineup
+        var follower=Aircraft(id:"FOLLOWER",modelID:"07",departure:true,stand:12,position:queueGate.port,phase:.taxiing,route:queueRoute,runway:queueRunway)
+        follower.departureEntry=queueEntry.lineup
+        departureQueue.aircraft=[leader,follower];departureQueue.running=true
+        for _ in 0..<10 {departureQueue.tick(0.1)}
+        precondition(departureQueue.aircraft[0].departureQueuePosition==1)
+        precondition(departureQueue.aircraft[1].departureQueuePosition==2 && departureQueue.aircraft[1].groundWaitingState == .departureQueue)
+        let heldPosition=departureQueue.aircraft[1].position,heldSearches=departureQueue.groundTrafficSearches
+        for _ in 0..<50 {departureQueue.tick(0.1)}
+        precondition(departureQueue.aircraft[1].position==heldPosition,"queued follower moved during an unchanged hold")
+        precondition(departureQueue.groundTrafficSearches==heldSearches,"unchanged departure queue repeated planner searches")
+        departureQueue.selectedID="LEADER";departureQueue.clearSelected(to:queueRunway)
+        for _ in 0..<300 {
+            departureQueue.tick(0.1)
+            if departureQueue.aircraft[1].position.distance(to:heldPosition)>1 {break}
+        }
+        precondition(departureQueue.groundTrafficSearches>heldSearches,"leader clearance did not wake the follower search")
+        precondition(departureQueue.aircraft[1].position.distance(to:heldPosition)>1,"follower did not advance after leader clearance")
+        print("PASS:departure queue exposes positions, holds without polling, and advances after leader clearance")
 
 
     }

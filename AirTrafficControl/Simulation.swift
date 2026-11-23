@@ -18,6 +18,12 @@ enum FlightPhase: String {
     case takeoff = "Taking off", landing = "Landing"
     case servicing = "Ground services", gateWait = "Gate wait", complete = "Complete", diverted = "Diverted", crashed = "Crashed"
 }
+enum GroundWaitingState: String {
+    case departureQueue = "Waiting in departure queue"
+    case runwayClearance = "Awaiting runway clearance"
+    case traffic = "Waiting for traffic"
+    case scheduled = "Scheduled traffic hold"
+}
 struct Aircraft: Identifiable {
     let id: String
     let modelID: String
@@ -45,6 +51,8 @@ struct Aircraft: Identifiable {
     var yieldPassPoint:Point?
     var yieldPassHeading=0.0
     var waitingForTraffic=false
+    var groundWaitingState:GroundWaitingState?
+    var departureQueuePosition:Int?
     var crossingRequest:Int?
     var crossingClearances:Set<Int> = []
     var crossingsEntered:Set<Int> = []
@@ -103,6 +111,22 @@ struct Message: Identifiable {
 
 @MainActor @Observable
 final class Simulation {
+    private struct GroundTrafficHold:Equatable {
+        let position:Point
+        let heading:Double
+        let ready:Bool
+        let phase:FlightPhase
+        let route:[Point]
+    }
+    private struct DepartureQueueMember:Equatable {
+        let id:String
+        let phase:FlightPhase
+        let runway:Int?
+        let hasPlan:Bool
+        let stopped:Bool
+        let crossingRequest:Int?
+        let destination:Point?
+    }
     static let sharedAirborneAltitude=4500.0
     var aircraft: [Aircraft] = []
     var runways: [Runway] = []
@@ -126,8 +150,9 @@ final class Simulation {
     var groundTrafficPlans:[String:GroundTrafficPlan]=[:]
     private var groundTrafficEscapes=Set<String>()
     private var groundTrafficRoutes:[String:[Point]]=[:]
-    private var groundTrafficHolds:[String:(Point,Double,Bool)]=[:]
+    private var groundTrafficHolds:[String:GroundTrafficHold]=[:]
     private var groundTrafficRetry:[String:Double]=[:]
+    private var departureQueueWaits:[String:[DepartureQueueMember]]=[:]
     private var groundTrafficRevision = -1
     private var random: ShiftRandom
     let continuousTraffic:Bool
@@ -442,7 +467,7 @@ final class Simulation {
         for other in aircraft where !towerOwnsConflict(f,other) && groundConflict(f,from:f.position,to:end,other:other,margin:1) {
             if end.distance(to:other.position)>f.position.distance(to:other.position)+0.01 {continue}
             aircraft[i].blockedBy=other.id
-            if f.phase == .taxiing && !f.recoveringGround && elapsed>=f.nextTaxiPlan,let target=f.route.last {
+            if f.phase == .taxiing && f.groundWaitingState != .departureQueue && !f.recoveringGround && elapsed>=f.nextTaxiPlan,let target=f.route.last {
                 aircraft[i].nextTaxiPlan=elapsed+3
                 let route=safeTaxiPath(f,to:target)
                 if !route.isEmpty {aircraft[i].route=route}
@@ -589,7 +614,7 @@ final class Simulation {
         return surface.taxiRoute(from:flight.position,to:target,minimumWidth:flight.model.span*0.55)
     }
     private func invalidateGroundTraffic() {
-        groundTrafficPlans=[:];groundTrafficRoutes=[:];groundTrafficHolds=[:];groundTrafficRetry=[:]
+        groundTrafficPlans=[:];groundTrafficRoutes=[:];groundTrafficHolds=[:];groundTrafficRetry=[:];departureQueueWaits=[:]
         groundTrafficRevision=surface.revision
     }
     private func trafficManaged(_ f:Aircraft)->Bool {
@@ -625,8 +650,41 @@ final class Simulation {
         }
         return .init(revision:surface.revision,now:elapsed,horizon:horizon,reservations:reservations)
     }
+    private func groundTrafficHold(for flight:Aircraft)->GroundTrafficHold {
+        .init(position:flight.position,heading:flight.heading,ready:trafficReady(flight),phase:flight.phase,route:flight.route)
+    }
+    private func refreshDepartureQueues() {
+        for i in aircraft.indices {aircraft[i].departureQueuePosition=nil}
+        for runway in runways.indices {
+            let queue=aircraft.indices.filter {
+                aircraft[$0].departure && aircraft[$0].runway==runway && [.taxiing,.queued].contains(aircraft[$0].phase)
+            }.sorted {a,b in
+                let one=aircraft[a].phase == .queued ? 0:FlightCurves.length(from:aircraft[a].position,route:aircraft[a].route)
+                let two=aircraft[b].phase == .queued ? 0:FlightCurves.length(from:aircraft[b].position,route:aircraft[b].route)
+                return abs(one-two)>0.001 ? one<two:aircraft[a].id<aircraft[b].id
+            }
+            for (position,index) in queue.enumerated() {aircraft[index].departureQueuePosition=position+1}
+        }
+        for i in aircraft.indices {
+            if aircraft[i].departure && aircraft[i].phase == .queued {aircraft[i].groundWaitingState = .runwayClearance}
+            else if aircraft[i].waitingForTraffic {
+                if aircraft[i].departureQueuePosition != nil {aircraft[i].groundWaitingState = .departureQueue}
+                else if groundTrafficPlans[aircraft[i].id]?.waiting(at:elapsed) == true {aircraft[i].groundWaitingState = .scheduled}
+                else {aircraft[i].groundWaitingState = .traffic}
+            } else {aircraft[i].groundWaitingState=nil}
+        }
+    }
+    private func departureQueueSignature(for flight:Aircraft)->[DepartureQueueMember] {
+        guard let runway=flight.runway,let position=flight.departureQueuePosition else{return []}
+        return aircraft.filter {
+            $0.id != flight.id && $0.departure && $0.runway==runway && ($0.departureQueuePosition ?? Int.max)<position
+        }.sorted{$0.id<$1.id}.map {
+            .init(id:$0.id,phase:$0.phase,runway:$0.runway,hasPlan:groundTrafficPlans[$0.id] != nil,stopped:$0.stopped,crossingRequest:$0.crossingRequest,destination:$0.route.last)
+        }
+    }
     private func prepareGroundTraffic(_ step:Double) {
         if groundTrafficRevision != surface.revision {invalidateGroundTraffic()}
+        refreshDepartureQueues()
         for i in aircraft.indices {
             if let id=aircraft[i].yieldTo,let winner=aircraft.first(where:{$0.id==id}),[.queued,.complete].contains(winner.phase) {
                 // The winner has finished this taxi movement. Its actual held
@@ -650,7 +708,7 @@ final class Simulation {
         var changed=grounded != tracked
         func cancel(_ id:String) {
             groundTrafficCancellations+=1
-            groundTrafficPlans.removeValue(forKey:id);groundTrafficRoutes.removeValue(forKey:id);groundTrafficRetry.removeValue(forKey:id)
+            groundTrafficPlans.removeValue(forKey:id);groundTrafficRoutes.removeValue(forKey:id);groundTrafficRetry.removeValue(forKey:id);departureQueueWaits.removeValue(forKey:id)
         }
         for (id,plan) in groundTrafficPlans {
             guard let f=aircraft.first(where:{$0.id==id}),trafficReady(f),f.phase==plan.phase,
@@ -659,7 +717,7 @@ final class Simulation {
                   f.route==groundTrafficRoutes[id],elapsed<plan.horizon-1 else{cancel(id);changed=true;continue}
         }
         for (id,hold) in groundTrafficHolds {
-            guard let f=aircraft.first(where:{$0.id==id}),f.position.distance(to:hold.0)<0.01,abs(atan2(sin(f.heading-hold.1),cos(f.heading-hold.1)))<0.001,trafficReady(f)==hold.2 else{changed=true;continue}
+            guard let f=aircraft.first(where:{$0.id==id}),groundTrafficHold(for:f)==hold else{changed=true;continue}
         }
         // Cancel dependent plans to a fixed point against actual held positions.
         // An unrelated runway roll must not repeatedly restart the entire apron.
@@ -694,6 +752,11 @@ final class Simulation {
         // admitted one by one, never from independently stale traffic copies.
         for i in aircraft.indices where trafficReady(aircraft[i]) && groundTrafficPlans[aircraft[i].id]==nil {
             let f=aircraft[i]
+            if let held=departureQueueWaits[f.id] {
+                if held==departureQueueSignature(for:f) {continue}
+                departureQueueWaits.removeValue(forKey:f.id)
+                groundTrafficRetry.removeValue(forKey:f.id)
+            }
             if elapsed<(groundTrafficRetry[f.id] ?? 0) {continue}
             groundTrafficRetry[f.id]=elapsed+2
             let snapshot=groundTrafficSnapshot(for:f)
@@ -712,11 +775,19 @@ final class Simulation {
             if candidate == nil && !(f.phase == .taxiing && surface.taxiNetwork.hasRestrictions) {candidate=GroundTrafficPlanner.plan(flight:f,route:f.phase == .takeoff ? Array(f.route.dropLast()) : f.route,snapshot:snapshot,constraints:surface.network)}
             if let plan=candidate,GroundTrafficPlanner.validated(plan,flight:f,against:snapshot) {
                 groundTrafficPlans[f.id]=plan
+                groundTrafficRetry.removeValue(forKey:f.id)
+                departureQueueWaits.removeValue(forKey:f.id)
                 aircraft[i].route=plan.legs.map(\.to)+(f.phase == .takeoff ? Array(f.route.suffix(1)) : [])
                 groundTrafficRoutes[f.id]=aircraft[i].route
+            } else if f.departureQueuePosition != nil {
+                // A held departure queue changes only when membership, routing,
+                // clearance or a committed plan changes. Re-search on that
+                // event instead of polling the identical hold every 2 s.
+                let signature=departureQueueSignature(for:f)
+                if !signature.isEmpty {departureQueueWaits[f.id]=signature}
             }
         }
-        groundTrafficHolds=Dictionary(uniqueKeysWithValues:aircraft.filter{!$0.airborne && groundTrafficPlans[$0.id]==nil && ![.crashed,.diverted].contains($0.phase) && !($0.departure && $0.phase == .complete)}.map{($0.id,($0.position,$0.heading,trafficReady($0)))})
+        groundTrafficHolds=Dictionary(uniqueKeysWithValues:aircraft.filter{!$0.airborne && groundTrafficPlans[$0.id]==nil && ![.crashed,.diverted].contains($0.phase) && !($0.departure && $0.phase == .complete)}.map{($0.id,groundTrafficHold(for:$0))})
     }
     private func moveOnGroundSchedule(_ i:Int,step:Double)->Bool {
         guard trafficManaged(aircraft[i]) else{return false}
@@ -886,6 +957,7 @@ final class Simulation {
             if aircraft[i].position.distance(to:previous[i].position)>0.01 {aircraft[i].blockedSince=nil;aircraft[i].blockedBy=nil}
             if aircraft[i].route.isEmpty && !aircraft[i].stopped && [.inbound,.holding,.approach,.landingRoll,.runwayExit,.lineup,.takeoffRoll,.landing,.taxiing,.pushback,.takeoff,.climbing].contains(aircraft[i].phase) {reachedRouteEnd(i)}
         }
+        refreshDepartureQueues()
         detectCollisions(previous: previous)
         updateGroundServices(step)
         updateGateReadiness(step)
