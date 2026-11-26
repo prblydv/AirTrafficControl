@@ -1,0 +1,29 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Play Air Traffic Control",
+      "detail": "Build (incremental) and launch the macOS game.",
+      "type": "shell",
+      "command": "./play.command",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Play Air Traffic Control (no rebuild)",
+      "detail": "Launch the existing build without rebuilding.",
+      "type": "shell",
+      "command": "./play.command --skip-build",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    }
+  ]
+}

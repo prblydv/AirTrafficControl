@@ -23,6 +23,7 @@ struct AirportImage:Codable {
 struct AirportRunwayEndDefinition:Codable {
     var id:String;var name:String;var threshold:Point;var oppositeThreshold:Point
     var hold:Point;var exit:Point;var usableLengthMeters:Double
+    var landingExits:[[Point]]? = nil
 }
 struct AirportRunwayDefinition:Codable {
     var id:Int;var name:String;var reciprocalName:String;var start:Point;var end:Point
@@ -39,6 +40,11 @@ struct AirportStand:Codable {
     var id:String;var name:String;var position:Point;var nose:Point;var port:Point
     var maxLength:Double;var maxSpan:Double;var purpose:AirportPurpose;var access:[Point]
     var tugBay:Point;var departureRunways:[Int];var tugRequired:Bool
+    var preferredModelIDs:[String]?=nil
+    func preference(for model:AircraftModel)->Int {
+        guard let preferredModelIDs else{return 1}
+        return preferredModelIDs.contains(model.id) ? 0:2
+    }
     var military:Bool {purpose.military}
     var cargo:Bool {purpose.cargo}
     var heading:Double {atan2(nose.y-position.y,nose.x-position.x)}
@@ -84,9 +90,21 @@ struct AirportDefinition:Codable {
             require(!r.name.isEmpty && !r.reciprocalName.isEmpty && point(r.start) && point(r.end) && r.start.distance(to:r.end)>1 && point(r.hold) && point(r.exit) && positive(r.lengthMeters) && positive(r.width) && positive(r.rangeReferenceNM) && [-1,1].contains(r.orbitDirection),"Invalid runway \(r.id).")
             let ends=r.operatingEnds ?? []
             require(!ends.isEmpty && Set(ends.map(\.id)).count==ends.count && r.preferredEndID != nil && ends.contains{$0.id==r.preferredEndID} && ends.allSatisfy{!$0.id.isEmpty && !$0.name.isEmpty && point($0.threshold) && point($0.oppositeThreshold) && $0.threshold.distance(to:$0.oppositeThreshold)>1 && point($0.hold) && point($0.exit) && positive($0.usableLengthMeters)},"Invalid operating ends for runway \(r.id).")
+            for end in ends {
+                for path in end.landingExits ?? [] {
+                    require(path.count>=2 && path.allSatisfy(point),"Invalid authored landing exit for \(end.id).")
+                    if let first=path.first,let last=path.last {
+                        let a=end.threshold,b=end.oppositeThreshold,dx=b.x-a.x,dy=b.y-a.y,l=a.distance(to:b)
+                        let t=((first.x-a.x)*dx+(first.y-a.y)*dy)/(l*l)
+                        require(t>=0 && t<=1 && abs((first.x-a.x)*dy-(first.y-a.y)*dx)/l<5,"Landing exit must start on its runway: \(end.id).")
+                        require(routes.nodes.contains{$0.layer == .aircraft && $0.point.distance(to:last)<0.1},"Landing exit must join a traced taxiway: \(end.id).")
+                    }
+                }
+            }
         }
         require(!stands.isEmpty && Set(stands.map(\.id)).count==stands.count,"Missing stands or duplicate stand IDs.")
         for s in stands {
+            if let preferred=s.preferredModelIDs {require(preferred.allSatisfy{id in AircraftCatalog.models.contains{$0.id == id}},"Invalid preferred aircraft at \(s.id).")}
             require(!s.id.isEmpty && !s.name.isEmpty && point(s.position) && point(s.nose) && s.position.distance(to:s.nose)>0.01 && point(s.port) && point(s.tugBay) && positive(s.maxLength) && positive(s.maxSpan) && !s.departureRunways.isEmpty && s.departureRunways.allSatisfy{runways.indices.contains($0)},"Invalid stand \(s.id).")
             require(s.access.count>=2 && s.access.allSatisfy(point) && (s.access.first?.distance(to:s.position) ?? 99)<0.1 && (s.access.last?.distance(to:s.port) ?? 99)<0.1,"Stand access must connect position to port: \(s.id).")
         }

@@ -48,6 +48,9 @@ struct Aircraft: Identifiable {
     var nextYieldAttempt=0.0
     var yieldCandidateCursor=0
     var yieldTo:String?
+    var waitsForTugClearance:String?
+    var towRequestedAt=0.0
+    var towRelocationStand:Int?
     var yieldPassPoint:Point?
     var yieldPassHeading=0.0
     var waitingForTraffic=false
@@ -66,6 +69,7 @@ struct Aircraft: Identifiable {
     var preferredRunway = 0
     var holdingCenter: Point?
     var holdingAltitude = 0.0
+    var approachesAfterClimb = false
     var altitude = 0.0
     var descentStartAltitude = 0.0
     var descentStartDistance = 1.0
@@ -128,13 +132,19 @@ final class Simulation {
         let destination:Point?
     }
     static let sharedAirborneAltitude=4500.0
-    var aircraft: [Aircraft] = []
+    @ObservationIgnored var aircraft: [Aircraft] = []
     var runways: [Runway] = []
-    var vehicles: [GroundVehicle] = []
-    var serviceTasks: [ServiceTask] = []
+    @ObservationIgnored var vehicles: [GroundVehicle] = []
+    @ObservationIgnored var serviceTasks: [ServiceTask] = []
     var incidents: [AirportIncident] = []
     var selectedID: String? = nil
-    var elapsed = 0.0
+    @ObservationIgnored var elapsed = 0.0
+    var presentationRevision=0
+    @ObservationIgnored private var lastPresentationAt = -Double.infinity
+    func publishPresentation(force:Bool=false) {
+        guard force || elapsed-lastPresentationAt>=0.1 else{return}
+        lastPresentationAt=elapsed;presentationRevision &+= 1
+    }
     var running = false
     var resolved = 0
     var violations = 0
@@ -148,14 +158,27 @@ final class Simulation {
     var groundTrafficSearches=0
     var groundTrafficCancellations=0
     var groundTrafficPlans:[String:GroundTrafficPlan]=[:]
+    var groundTrafficPlanningTestDelay=0.0
     private var groundTrafficEscapes=Set<String>()
     private var groundTrafficRoutes:[String:[Point]]=[:]
     private var groundTrafficHolds:[String:GroundTrafficHold]=[:]
     private var groundTrafficRetry:[String:Double]=[:]
+    var followsAssignedGroundRoutes=false
+    @ObservationIgnored private var blockerScanTime:[String:Double]=[:]
     private var departureQueueWaits:[String:[DepartureQueueMember]]=[:]
+    private let backgroundGroundPlanner=BackgroundGroundTrafficPlanner()
+    private var groundTrafficPending:[String:Int]=[:]
+    private struct PreparedTaxiClearance {
+        let token:Int
+        let fallback:[Point]
+    }
+    private var taxiClearancePending:[String:PreparedTaxiClearance]=[:]
+    private var preparedTaxiPlans:[String:BackgroundGroundTrafficPlanner.Result]=[:]
+    private var nextGroundTrafficToken=0
     private var groundTrafficRevision = -1
     private var random: ShiftRandom
     let continuousTraffic:Bool
+    let plansGroundTrafficInBackground:Bool
     var nextArrivalAt=45.0
     var trafficSequence=1000
     static var stands:[Point] { SurfaceLayout.gates.map(\.position) }
@@ -171,7 +194,7 @@ final class Simulation {
     var score: Int { resolved * 100 - violations * 500 }
     var activeCount: Int { aircraft.filter { ![.complete, .diverted, .crashed].contains($0.phase) }.count }
 
-    init(seed: UInt64? = nil,continuousTraffic:Bool=true,airportPackage:AirportPackage?=nil,routes:AirportRouteDocument?=nil) {
+    init(seed: UInt64? = nil,continuousTraffic:Bool=true,airportPackage:AirportPackage?=nil,routes:AirportRouteDocument?=nil,plansGroundTrafficInBackground:Bool=false) {
         let package=airportPackage ?? .defaultAirport
         self.airportPackage=package
         usesDeveloperOverrides=airportPackage == nil && routes == nil
@@ -180,6 +203,7 @@ final class Simulation {
         let surface=AirportSurface(package:package,routes:routes ?? override)
         self.surface=surface;roads=AirportServiceRoads(surface:surface)
         self.continuousTraffic=continuousTraffic
+        self.plansGroundTrafficInBackground=plansGroundTrafficInBackground
         random = ShiftRandom(seed: seed ?? UInt64.random(in: .min ... .max))
         reset()
     }
@@ -196,11 +220,21 @@ final class Simulation {
         if let seed { random = ShiftRandom(seed: seed) }
         runways=airport.runways.map{let end=$0.activeEnd;return Runway(id:$0.id,name:end.name,start:end.threshold,end:end.oppositeThreshold)}
         var used=Set<Int>();aircraft=[]
-        for specification in airport.traffic.initial {
+        // Allocate the restricted stand pools first so broad arrival pools do
+        // not consume the only stands available to another initial flight.
+        let initial=airport.traffic.initial.enumerated().sorted {a,b in
+            a.element.standIDs.count == b.element.standIDs.count ? a.offset<b.offset:a.element.standIDs.count<b.element.standIDs.count
+        }
+        for entry in initial {
+            let specification=entry.element
             let pool=specification.modelIDs.map(AircraftCatalog.model)
             let preferred=surface.gates.indices.filter{specification.standIDs.contains(surface.gates[$0].id)}
             let available=pool.filter{model in preferred.contains{!used.contains($0) && surface.gates[$0].accepts(model,purpose:specification.purpose)}}
-            guard let model=available.randomElement(using:&random),let stand=preferred.filter({!used.contains($0) && surface.gates[$0].accepts(model,purpose:specification.purpose)}).min(by:{surface.gates[$0].maxSpan<surface.gates[$1].maxSpan}) else{continue}
+            let preferredModels=preferred.allSatisfy({surface.gates[$0].preferredModelIDs != nil}) ? available.filter{model in preferred.contains{!used.contains($0) && surface.gates[$0].accepts(model,purpose:specification.purpose) && surface.gates[$0].preference(for:model)==0}}:[]
+            guard let model=(preferredModels.isEmpty ? available:preferredModels).randomElement(using:&random),let stand=preferred.filter({!used.contains($0) && surface.gates[$0].accepts(model,purpose:specification.purpose)}).min(by:{a,b in
+                let one=surface.gates[a].preference(for:model),two=surface.gates[b].preference(for:model)
+                return one == two ? surface.gates[a].maxSpan<surface.gates[b].maxSpan:one<two
+            }) else{continue}
             used.insert(stand)
             let gate=surface.gates[stand],peer=airport.traffic.peers[Int.random(in:0..<airport.traffic.peers.count,using:&random)]
             guard let runway=runways.indices.filter({surface.eligible(model,runway:$0)}).randomElement(using:&random) else{continue}
@@ -209,6 +243,8 @@ final class Simulation {
             flight.purpose=specification.purpose
             aircraft.append(flight)
         }
+        let initialOrder=Dictionary(uniqueKeysWithValues:airport.traffic.initial.enumerated().map{($0.element.id,$0.offset)})
+        aircraft.sort{(initialOrder[$0.id] ?? 0)<(initialOrder[$1.id] ?? 0)}
         for i in aircraft.indices {
             if aircraft[i].departure {
                 aircraft[i].fuelFraction=1;aircraft[i].passengersHandled=true;aircraft[i].baggageHandled=true
@@ -231,7 +267,7 @@ final class Simulation {
         selectedID = aircraft.first?.id; messages = []
         notice = "Live clearances. You are responsible for aircraft separation."
         resetGroundServices()
-        if continuousTraffic {for i in aircraft.indices where !aircraft[i].departure {aircraft[i].automaticArrival=true;assignApproach(i)}}
+        for i in aircraft.indices where !aircraft[i].departure {aircraft[i].automaticArrival=true;assignApproach(i)}
         log("Tower online. No automatic runway reservations. Instructions act immediately.")
     }
     func assignDepartureAirports(_ index:Int) {
@@ -242,9 +278,10 @@ final class Simulation {
     func log(_ text: String) {
         messages.insert(Message(time: elapsed, text: text), at: 0)
         if messages.count > 40 { messages.removeLast() }
+        publishPresentation(force:true)
     }
     func reject(_ text: String) { notice = text; log(text) }
-    func startLive() { if !finished { running = true } }
+    func startLive() { if !finished { running = true };publishPresentation(force:true) }
     func toggleRunning() { if !finished { running.toggle() } }
     func toggleSelectedGroundHold() {
         guard let i = aircraft.firstIndex(where: { $0.id == selectedID }), [.taxiing, .pushback].contains(aircraft[i].phase) else { return }
@@ -260,7 +297,7 @@ final class Simulation {
         if aircraft[i].departure && phase == .parked {
             let gate=surface.gates[aircraft[i].stand]
             let entry=surface.departureEntry(for:aircraft[i].model,runway:runwayID,from:gate.port)
-            var probe=aircraft[i];probe.position=gate.port
+            var probe=aircraft[i];probe.position=gate.port;probe.phase = .taxiing
             let taxi=plannedTaxiRoute(for:probe,to:entry.hold)
             guard !taxi.isEmpty else { reject("Taxi route is currently unavailable. Try another runway or wait for traffic.");return }
             let target=taxi.first ?? surface.hold(runwayID)
@@ -275,7 +312,20 @@ final class Simulation {
             aircraft[i].pendingTaxiRoute=taxi
             if !gate.tugRequired {
                 aircraft[i].phase = .taxiing;aircraft[i].route=surface.rounded(gate.access,radius:3)+taxi;aircraft[i].pendingTaxiRoute=[]
-            } else { enqueue(.pushback,target:.aircraft(aircraft[i].id)) }
+            } else {
+                enqueue(.pushback,target:.aircraft(aircraft[i].id))
+                if plansGroundTrafficInBackground && !followsAssignedGroundRoutes {
+                    // Hold the tug at the stand until the one timed search also
+                    // supplies the best initial taxi direction. The same result
+                    // is reused after pushback if it is still safe.
+                    aircraft[i].route=[]
+                    nextGroundTrafficToken+=1
+                    let token=nextGroundTrafficToken,snapshot=groundTrafficSnapshot(for:probe)
+                    groundTrafficSearches+=1
+                    taxiClearancePending[probe.id] = .init(token:token,fallback:taxi)
+                    backgroundGroundPlanner.submit(owner:probe.id,token:token,flight:probe,route:.graph(surface.taxiNetwork,entry.hold,fallback:nil,constraints:surface.network),snapshot:snapshot,delay:groundTrafficPlanningTestDelay)
+                }
+            }
             notice = !gate.tugRequired ? "Taxi clearance sent." : "Pushback tug dispatched; taxi follows automatically after pushback."
         } else if aircraft[i].departure && phase == .queued {
             if aircraft[i].runway != runwayID { rerouteSelected(to: runwayID); return }
@@ -289,9 +339,18 @@ final class Simulation {
             aircraft[i].route=entry
             notice = "Line-up clearance sent; takeoff roll follows when aligned. Check the runway yourself."
         } else if !aircraft[i].departure && [.inbound, .holding, .approach].contains(phase) {
-            aircraft[i].runway = runwayID; aircraft[i].phase = .approach
+            let changed=aircraft[i].runway != runwayID
+            aircraft[i].runway = runwayID
             aircraft[i].automaticArrival=false
-            assignApproach(i)
+            if changed && aircraft[i].altitude<Self.sharedAirborneAltitude {
+                aircraft[i].phase = .holding
+                aircraft[i].holdingAltitude=Self.sharedAirborneAltitude
+                aircraft[i].approachesAfterClimb=true
+                setHoldingRoute(i)
+            } else {
+                aircraft[i].approachesAfterClimb=false
+                assignApproach(i)
+            }
             notice = "Landing clearance sent. Watch spacing and crossing traffic."
         } else { reject("\(aircraft[i].id) is \(phase.rawValue.lowercased())."); return }
         log("\(aircraft[i].id): \(aircraft[i].phase.rawValue), \(runways[runwayID].name).")
@@ -300,6 +359,7 @@ final class Simulation {
     func holdSelected() {
         guard let i = aircraft.firstIndex(where: { $0.id == selectedID }), [.inbound, .holding, .approach].contains(aircraft[i].phase) else { return }
         aircraft[i].automaticArrival=false
+        aircraft[i].approachesAfterClimb=false
         aircraft[i].phase = .holding
         aircraft[i].holdingAltitude = max(3000, aircraft[i].altitude)
         aircraft[i].holdingCenter = nil
@@ -341,11 +401,6 @@ final class Simulation {
     }
     private func assignApproach(_ i:Int) {
         guard let r=aircraft[i].runway else{return}
-        if aircraft[i].automaticArrival && !automaticArrivalHasRoom(i,runway:r) {
-            aircraft[i].phase = .holding;aircraft[i].holdingAltitude=max(3000,aircraft[i].altitude)
-            aircraft[i].retryArrivalAt=elapsed+5;setHoldingRoute(i)
-            return
-        }
         let h=surface.heading(r),end=runways[r].start
         // Finish with an aligned straight final; never steer toward an off-axis pin.
         let final=surface.offset(end,heading:h,along:-airport.rules.finalApproachDistance)
@@ -384,9 +439,9 @@ final class Simulation {
             _ = startArrivalTaxi(i)
         }
         if elapsed>=nextArrivalAt {
-            nextArrivalAt=elapsed+max(airport.traffic.minimumIntervalSeconds,airport.traffic.baseIntervalSeconds-elapsed/airport.traffic.intervalDecaySeconds)
             let waiting=aircraft.filter{$0.airborne && ![.complete,.crashed,.diverted].contains($0.phase)}.count
-            if waiting<airport.traffic.airborneLimit {spawnArrival()}
+            let spawned=waiting<airport.traffic.airborneLimit && spawnArrival()
+            nextArrivalAt=elapsed+(spawned ? arrivalInterval : 1)
         }
         let retired=Set(aircraft.filter { f in
             guard f.id != selectedID,let retired=f.retiredAt,elapsed-retired>airport.traffic.retireAfterSeconds else{return false}
@@ -397,19 +452,24 @@ final class Simulation {
             serviceTasks.removeAll {if case .aircraft(let id)=$0.target{return retired.contains(id)};return false}
         }
     }
-    private func spawnArrival() {
-        guard let choice=airport.traffic.continuousModels.randomElement(using:&random) else{return}
+    var arrivalInterval:Double {
+        max(airport.traffic.minimumIntervalSeconds,airport.traffic.baseIntervalSeconds-elapsed/airport.traffic.intervalDecaySeconds)
+    }
+    @discardableResult private func spawnArrival()->Bool {
+        guard let choice=airport.traffic.continuousModels.randomElement(using:&random) else{return false}
         let model=AircraftCatalog.model(choice.modelID)
         let compatible=surface.gates.indices.filter {stand in
-            surface.gates[stand].accepts(model,purpose:choice.purpose) && !aircraft.contains{$0.stand==stand && ![.complete,.crashed,.diverted].contains($0.phase)}
+            surface.gates[stand].accepts(model,purpose:choice.purpose)
         }
+        let occupied=Dictionary(grouping:aircraft.filter{![.complete,.crashed,.diverted].contains($0.phase)},by: \.stand).mapValues(\.count)
         guard let stand=compatible.min(by:{a,b in
-            aircraft.filter{$0.stand==a && ![.complete,.crashed,.diverted].contains($0.phase)}.count < aircraft.filter{$0.stand==b && ![.complete,.crashed,.diverted].contains($0.phase)}.count
-        }) else{return}
+            let one=occupied[a,default:0],two=occupied[b,default:0]
+            return one == two ? surface.gates[a].preference(for:model)<surface.gates[b].preference(for:model):one<two
+        }) else{return false}
         let eligible=runways.indices.filter{surface.eligible(model,runway:$0)}
-        guard let runway=eligible.randomElement(using:&random) else{return}
+        guard let runway=eligible.randomElement(using:&random) else{return false}
         let slots=airport.traffic.spawnPoints
-        guard let position=slots.first(where:{p in !aircraft.contains{$0.airborne && $0.phase != .complete && $0.position.distance(to:p)<135}}) else{return}
+        guard let position=slots.first(where:{p in !aircraft.contains{$0.airborne && $0.phase != .complete && $0.position.distance(to:p)<135}}) else{return false}
         trafficSequence+=1
         let origin=airport.traffic.continuousPeers.randomElement(using:&random)!
         let heading=atan2(airport.image.height/2-position.y,airport.image.width/2-position.x)
@@ -418,6 +478,7 @@ final class Simulation {
         flight.passengerUnloadDuration=Double(Int.random(in:14...24,using:&random));flight.passengerLoadDuration=Double(Int.random(in:20...32,using:&random));flight.refuelDuration=Double(Int.random(in:25...40,using:&random))
         aircraft.append(flight);assignApproach(aircraft.count-1)
         log("\(flight.id): inbound from \(origin), runway \(runways[runway].name).")
+        return true
     }
     func onRunway(_ p:Point,_ runway:Int)->Bool {
         let a=runways[runway].start,b=runways[runway].end,dx=b.x-a.x,dy=b.y-a.y,l=a.distance(to:b)
@@ -431,8 +492,18 @@ final class Simulation {
     func runwayConflict(_ a:Aircraft,_ b:Aircraft)->Bool {
         guard a.altitude<150,b.altitude<150,!a.airborne || !b.airborne else{return false}
         return runways.indices.contains {r in
-            onRunway(a.position,r) && onRunway(b.position,r) && (activeRunwayOperation(a,r) || activeRunwayOperation(b,r))
+            occupiesRunway(a,r) && occupiesRunway(b,r) && (activeRunwayOperation(a,r) || activeRunwayOperation(b,r))
         }
+    }
+    func occupiesRunway(_ flight:Aircraft,_ runway:Int)->Bool {
+        let a=runways[runway].start,b=runways[runway].end,length=a.distance(to:b)
+        let h=atan2(b.y-a.y,b.x-a.x),c=cos(h),s=sin(h)
+        let dx=flight.position.x-a.x,dy=flight.position.y-a.y
+        let along=dx*c+dy*s,side = -dx*s+dy*c
+        let delta=flight.heading-h,halfLength=flight.model.length*flight.apparentScale/2,halfSpan=flight.model.span*flight.apparentScale/2
+        let alongExtent=abs(cos(delta))*halfLength+abs(sin(delta))*halfSpan
+        let sideExtent=abs(sin(delta))*halfLength+abs(cos(delta))*halfSpan
+        return along+alongExtent>=0 && along-alongExtent<=length && abs(side)<=airport.runways[runway].width/2+sideExtent
     }
     private func towerOwnsConflict(_ f:Aircraft,_ other:Aircraft)->Bool {
         for r in runways.indices {
@@ -449,31 +520,67 @@ final class Simulation {
     private func taxiMustWait(_ i:Int)->Bool {
         let f=aircraft[i]
         guard !f.airborne,[.taxiing,.pushback,.lineup,.landingRoll,.runwayExit,.landing,.takeoff].contains(f.phase),!f.route.isEmpty else{return false}
+        // Priority applies after the tow clears the shared lane. Do not let
+        // the opposing aircraft advance into the tug's escape manoeuvre.
+        if let id=f.waitsForTugClearance {
+            if !followsAssignedGroundRoutes && aircraft.contains(where:{$0.id==id && $0.recoveringGround}) {
+                aircraft[i].blockedBy=id
+                return true
+            }
+            aircraft[i].waitsForTugClearance=nil
+        }
         // Once a landing/takeoff operation is on its assigned strip, runway
         // authority and runway-contact rules own the movement. A larger,
         // calibrated taxi stopping envelope must not let an adjacent holding-
         // short footprint veto the roll.
         if let runway=f.runway,[.landingRoll,.takeoffRoll,.landing,.takeoff].contains(f.phase),onRunway(f.position,runway) {return false}
-        if !f.recoveringGround,let id=f.yieldTo,let other=aircraft.first(where:{$0.id==id}),!other.airborne,![.queued,.complete].contains(other.phase),
+        if !followsAssignedGroundRoutes && !f.recoveringGround,let id=f.yieldTo,let other=aircraft.first(where:{$0.id==id}),!other.airborne,![.queued,.complete].contains(other.phase),
            let point=f.yieldPassPoint,(other.position.x-point.x)*cos(f.yieldPassHeading)+(other.position.y-point.y)*sin(f.yieldPassHeading)<25 {return true}
         if !f.recoveringGround {aircraft[i].yieldTo=nil}
         let motion=GroundMotionModel.profile(for:f)
         var end=f.position,remaining=motion.lookaheadDistance(at:f.groundSpeed,aircraftLength:f.model.length)
+        var lookahead=[f.position]
         for p in f.route {
             let d=end.distance(to:p)
-            if d>remaining {end=Point.interpolate(end,p,fraction:remaining/d);break}
-            remaining-=d;end=p;if remaining<=0 {break}
+            if d>remaining {end=Point.interpolate(end,p,fraction:remaining/d);lookahead.append(end);break}
+            remaining-=d;end=p
+            if end.distance(to:lookahead.last!)>=3 {lookahead.append(end)}
+            if remaining<=0 {break}
         }
-        for other in aircraft where !towerOwnsConflict(f,other) && groundConflict(f,from:f.position,to:end,other:other,margin:1) {
-            if end.distance(to:other.position)>f.position.distance(to:other.position)+0.01 {continue}
+        if lookahead.last != end {lookahead.append(end)}
+        for tow in aircraft where tow.id != f.id && tow.recoveringGround && tow.underTow && !tow.waitingForTraffic && !tow.stopped && tow.position.distance(to:f.position)<150 {
+            if f.recoveringGround && (f.towRequestedAt<tow.towRequestedAt || (f.towRequestedAt==tow.towRequestedAt && f.id<tow.id)) {continue}
+            var corridor=[tow.position],walked=0.0,previous=tow.position
+            for p in tow.route {
+                walked+=previous.distance(to:p);previous=p
+                if p.distance(to:corridor.last!)>=5 {corridor.append(p)}
+                if walked>60 {break}
+            }
+            let segments=Array(zip(corridor,corridor.dropFirst()))
+            // Traffic already inside the corridor must be allowed to leave it.
+            if segments.contains(where:{groundConflict(tow,from:$0.0,to:$0.1,other:f,margin:3)}) {continue}
+            if lookahead.dropFirst().contains(where:{point in
+                var future=f;future.position=point
+                return segments.contains{groundConflict(tow,from:$0.0,to:$0.1,other:future,margin:3)}
+            }) {aircraft[i].blockedBy=tow.id;return true}
+        }
+        for other in aircraft where !towerOwnsConflict(f,other) {
+            let blocked=zip(lookahead,lookahead.dropFirst()).contains {a,b in
+                let toward=(b.x-a.x)*(other.position.x-a.x)+(b.y-a.y)*(other.position.y-a.y)
+                return toward>0.00001 && groundConflict(f,from:a,to:b,other:other,margin:1)
+            }
+            guard blocked else{continue}
             aircraft[i].blockedBy=other.id
-            if f.phase == .taxiing && f.groundWaitingState != .departureQueue && !f.recoveringGround && elapsed>=f.nextTaxiPlan,let target=f.route.last {
+            let opposing=cos(f.heading-other.heading)<(-0.5)
+            if !followsAssignedGroundRoutes && opposing && f.phase == .taxiing && !f.recoveringGround && elapsed>=f.nextTaxiPlan,let target=f.route.last {
                 aircraft[i].nextTaxiPlan=elapsed+3
                 let route=safeTaxiPath(f,to:target)
                 if !route.isEmpty {aircraft[i].route=route}
             }
             return true
-        };return false
+        }
+        aircraft[i].blockedBy=nil;aircraft[i].blockedSince=nil
+        return false
     }
     private func protectTaxiMovement(previous:[Aircraft],plans:[Aircraft]) {
         guard aircraft.count>1 else{return}
@@ -496,10 +603,12 @@ final class Simulation {
         }}
     }
     private func resolveTaxiDeadlocks() {
+        if followsAssignedGroundRoutes {return} // Live recovery is chosen by the player.
         for i in aircraft.indices where aircraft[i].waitingForTraffic && !aircraft[i].recoveringGround && !aircraft[i].stopped {
             guard let since=aircraft[i].blockedSince,elapsed-since>7,let id=aircraft[i].blockedBy,
                   let j=aircraft.firstIndex(where:{$0.id==id}),aircraft[j].waitingForTraffic,!aircraft[j].recoveringGround,!aircraft[j].stopped,
                   [.taxiing,.pushback].contains(aircraft[i].phase),[.taxiing,.pushback,.queued].contains(aircraft[j].phase) else{continue}
+            if followsAssignedGroundRoutes && cos(aircraft[i].heading-aircraft[j].heading) >= -0.5 {continue}
             // One yielding decision per conflict. Arrivals clearing the airfield win;
             // otherwise a stable callsign order prevents both choosing to reverse.
             let loser:Int,winner:Int
@@ -514,16 +623,99 @@ final class Simulation {
             if beginGroundYield(winner,to:loser) {return}
         }
     }
-    private func beginGroundYield(_ loser:Int,to winner:Int)->Bool {
-        let f=aircraft[loser],other=aircraft[winner]
-        guard let destination=(f.phase == .pushback ? f.pendingTaxiRoute.last : f.route.last) else{return false}
-        var graph=surface.taxiNetwork;graph.split(at:f.position)
+    struct TugRerouteOption:Identifiable {
+        let id:Int
+        let target:Point
+        let distance:Double
+    }
+    func standRelocationOptions(for flight:Aircraft)->[Int] {
+        guard !flight.airborne,[.parked,.servicing,.gateWait].contains(flight.phase) || flight.towRelocationStand != nil else{return []}
+        return Array(surface.gates.indices.filter {stand in
+            stand != flight.stand && surface.gates[stand].accepts(flight.model,purpose:flight.operatingPurpose) &&
+            !aircraft.contains{$0.id != flight.id && ($0.stand==stand || $0.towRelocationStand==stand) && ![.complete,.crashed,.diverted].contains($0.phase)}
+        }.sorted{surface.gates[$0].position.distance(to:flight.position)<surface.gates[$1].position.distance(to:flight.position)}.prefix(3))
+    }
+    func relocateSelectedByTug(to stand:Int) {
+        guard let f=selected,standRelocationOptions(for:f).contains(stand),let i=aircraft.firstIndex(where:{$0.id==f.id}) else{return}
+        let traffic=aircraft.filter{$0.id != f.id && !$0.airborne && ![.complete,.crashed,.diverted].contains($0.phase)}
+        let route=surface.taxiRoute(from:f.position,to:surface.gates[stand].position,minimumWidth:f.model.span*0.55,traffic:traffic,heading:f.heading)
+        guard !route.isEmpty else{reject("No connected tug route to that stand. Choose another stand.");return}
+        cancelStandServices(for:f.id)
+        aircraft[i].towRelocationStand=stand
+        aircraft[i].recoveringGround=true;aircraft[i].towRequestedAt=elapsed
+        aircraft[i].phase = .pushback;aircraft[i].stopped=false
+        aircraft[i].route=route;aircraft[i].pendingTaxiRoute=[surface.gates[stand].position]
+        aircraft[i].yieldTo=nil;aircraft[i].waitsForTugClearance=nil
+        aircraft[i].waitingForTraffic=false;aircraft[i].blockedBy=nil;aircraft[i].blockedSince=nil
+        enqueue(.pushback,target:.aircraft(f.id))
+        notice="Tug relocation to \(surface.gates[stand].name). Ground services resume after arrival."
+        log("\(f.id): tug relocating to \(surface.gates[stand].name).")
+        startLive()
+    }
+    @ObservationIgnored private var tugOptionsCacheKey=""
+    @ObservationIgnored private var tugOptionsCache:[TugRerouteOption]=[]
+    private func groundRecoveryDestination(_ f:Aircraft)->Point? {
+        if f.phase == .queued {return f.position}
+        if f.phase == .runwayExit {return surface.gates[f.stand].position}
+        return f.phase == .pushback ? f.pendingTaxiRoute.last:f.route.last
+    }
+    func groundHeadOnTraffic(for f:Aircraft)->Aircraft? {
+        guard !f.airborne,[.taxiing,.queued,.pushback,.runwayExit].contains(f.phase) else{return nil}
+        if f.waitingForTraffic,let id=f.blockedBy,let blocker=aircraft.first(where:{$0.id==id}),!blocker.airborne,
+           ![.complete,.crashed,.diverted].contains(blocker.phase),blocker.position.distance(to:f.position)<200 {return blocker}
+        guard !f.recoveringGround else{return nil}
+        func track(_ a:Aircraft)->Double {
+            guard let next=a.route.first else{return a.heading}
+            return atan2(next.y-a.position.y,next.x-a.position.x)
+        }
+        let h=track(f)
+        return aircraft.filter {other in
+            guard other.id != f.id,!other.airborne,!other.recoveringGround,
+                  [.taxiing,.queued,.pushback,.runwayExit].contains(other.phase),
+                  cos(h-track(other)) < -0.3 else{return false}
+            let dx=other.position.x-f.position.x,dy=other.position.y-f.position.y
+            return dx*cos(h)+dy*sin(h)>0 && hypot(dx,dy)<max(100,(f.model.length+other.model.length)*0.7+30)
+        }.min{$0.position.distance(to:f.position)<$1.position.distance(to:f.position)}
+    }
+    func tugRerouteOptions(for f:Aircraft)->[TugRerouteOption] {
+        guard f.towRelocationStand == nil else{return []}
+        guard let other=groundHeadOnTraffic(for:f),let destination=groundRecoveryDestination(f) else{return []}
+        let key="\(revision)-\(surface.revision)-\(f.id)-\(other.id)-\(f.position)-\(other.position)-\(destination)-\(Int(elapsed))"
+        if key==tugOptionsCacheKey {return tugOptionsCache}
+        let geometry=groundYieldGeometry(f,other)
+        var result:[TugRerouteOption]=[]
+        for target in geometry.targets {
+            guard result.allSatisfy({$0.target.distance(to:target)>30}) else{continue}
+            let path=geometry.graph.shortestPath(from:f.position,to:target,maximumAccessDistance:2,minimumWidth:f.model.span*0.55)
+            guard !path.isEmpty,
+                  !surface.taxiRoute(from:target,to:destination,minimumWidth:f.model.span*0.55).isEmpty else{continue}
+            result.append(.init(id:result.count,target:target,distance:FlightCurves.length(from:f.position,route:path)))
+            if result.count==3 {break}
+        }
+        tugOptionsCacheKey=key;tugOptionsCache=result
+        return result
+    }
+    func dispatchSelectedTug(to target:Point) {
+        guard let f=selected,let other=groundHeadOnTraffic(for:f),
+              let loser=aircraft.firstIndex(where:{$0.id==f.id}),let winner=aircraft.firstIndex(where:{$0.id==other.id}) else{reject("No head-on ground conflict for this aircraft.");return}
+        let alreadyAttached=f.underTow
+        guard tugRerouteOptions(for:f).contains(where:{$0.target==target}),beginGroundYield(loser,to:winner,towTarget:target) else{reject("That passing area is currently blocked. Choose another tug route.");return}
+        aircraft[loser].underTow=alreadyAttached
+        aircraft[loser].stopped=false
+        aircraft[loser].waitsForTugClearance=nil
+        aircraft[winner].waitsForTugClearance=f.id
+        notice="Tug dispatched for \(f.id). \(other.id) keeps priority."
+        startLive()
+    }
+    private func groundYieldGeometry(_ f:Aircraft,_ other:Aircraft)->(graph:RoadGraph,targets:[Point]) {
+        var graph=surface.taxiNetwork;let origin=graph.split(at:f.position)
         graph.edges=graph.edges.filter {e in
             !aircraft.contains {other in
                 let a=graph.nodes[e.a],b=graph.nodes[e.b]
                 guard groundConflict(f,from:a,to:b,other:other,margin:1) else{return false}
-                if a.distance(to:f.position)<0.02 && b.distance(to:other.position)>f.position.distance(to:other.position)+1 {return false}
-                if b.distance(to:f.position)<0.02 && a.distance(to:other.position)>f.position.distance(to:other.position)+1 {return false}
+                let ox=other.position.x-f.position.x,oy=other.position.y-f.position.y
+                if a.distance(to:f.position)<0.02 && (b.x-a.x)*ox+(b.y-a.y)*oy<=0 {return false}
+                if b.distance(to:f.position)<0.02 && (a.x-b.x)*ox+(a.y-b.y)*oy<=0 {return false}
                 return true
             }
         }
@@ -535,7 +727,22 @@ final class Simulation {
             };return best
         }
         let clearance=(f.model.span+other.model.span)*0.275+8
-        let candidates=graph.nodes.filter{$0.distance(to:f.position)>20 && $0.distance(to:f.position)<220 && distanceToRoute($0)>clearance}.sorted{$0.distance(to:f.position)<$1.distance(to:f.position)}
+        var reachable=Set<Int>(),stack=[Int](),adjacency=Array(repeating:[Int](),count:graph.nodes.count)
+        for edge in graph.edges where edge.fits(f.model.span*0.55) {
+            if edge.permits(from:edge.a) {adjacency[edge.a].append(edge.b)}
+            if edge.permits(from:edge.b) {adjacency[edge.b].append(edge.a)}
+        }
+        if let origin {reachable.insert(origin);stack.append(origin)}
+        while let node=stack.popLast() {for next in adjacency[node] where reachable.insert(next).inserted {stack.append(next)}}
+        let candidates=graph.nodes.indices.filter{reachable.contains($0)}.map{graph.nodes[$0]}.filter{$0.distance(to:f.position)>20 && distanceToRoute($0)>clearance}.sorted{$0.distance(to:f.position)<$1.distance(to:f.position)}
+        return (graph,candidates)
+    }
+    private func beginGroundYield(_ loser:Int,to winner:Int,towTarget:Point?=nil)->Bool {
+        let f=aircraft[loser],other=aircraft[winner]
+        guard let destination=groundRecoveryDestination(f) else{return false}
+        let geometry=groundYieldGeometry(f,other),graph=geometry.graph
+        let clearance=(f.model.span+other.model.span)*0.275+8
+        let candidates=geometry.targets.filter{towTarget == nil || $0==towTarget}
         guard !candidates.isEmpty else{return false}
         let offset=aircraft[loser].yieldCandidateCursor % candidates.count
         let ordered=Array(candidates.dropFirst(offset))+Array(candidates.prefix(offset))
@@ -547,13 +754,14 @@ final class Simulation {
             aircraft[loser].yieldCandidateCursor=(offset+index+1) % candidates.count
             if aircraft.contains(where:{$0.id != f.id && $0.recoveringGround && ($0.route.last?.distance(to:target) ?? 999)<clearance}) {continue}
             let path=graph.shortestPath(from:f.position,to:target,maximumAccessDistance:2,minimumWidth:f.model.span*0.55)
-            guard !path.isEmpty,FlightCurves.length(from:f.position,route:path)<400 else{continue}
-            let resume=surface.taxiRoute(from:target,to:destination,minimumWidth:f.model.span*0.55)
+            guard !path.isEmpty else{continue}
+            let traffic=aircraft.filter{$0.id != f.id && !$0.airborne && ![.complete,.crashed,.diverted].contains($0.phase)}
+            let resume=surface.taxiRoute(from:target,to:destination,minimumWidth:f.model.span*0.55,traffic:traffic)
             guard !resume.isEmpty else{continue}
             // A passing place is useful only if the loser can still leave it
             // after the winner reaches its holding point. Check with the same
             // planner instead of dispatching a tug into a terminal dead end.
-            if !groundTrafficEscapes.contains(f.id),let endpoint=(other.phase == .pushback ? other.pendingTaxiRoute.last : other.route.last) {
+            if !followsAssignedGroundRoutes && !groundTrafficEscapes.contains(f.id),let endpoint=(other.phase == .pushback ? other.pendingTaxiRoute.last : other.route.last) {
                 var probe=f;probe.position=target;probe.phase = .taxiing
                 let finalRoute=[other.position]+other.route
                 let before=finalRoute.dropLast().last ?? other.position
@@ -565,6 +773,7 @@ final class Simulation {
                 guard GroundTrafficPlanner.plan(flight:probe,graph:surface.taxiNetwork,target:destination,snapshot:snapshot,expansionLimit:3000) != nil else{continue}
             }
             aircraft[loser].recoveringGround=true;aircraft[loser].blockedSince=nil;aircraft[loser].blockedBy=nil
+            aircraft[loser].towRequestedAt=elapsed
             aircraft[loser].phase = .pushback;aircraft[loser].underTow=false;aircraft[loser].groundSpeed=0
             aircraft[loser].route=surface.rounded([f.position]+path,radius:2);aircraft[loser].pendingTaxiRoute=resume
             // Hold in the passing place until the winning aircraft has passed.
@@ -582,6 +791,53 @@ final class Simulation {
         return false
     }
 
+    private func retryBlockedTows() {
+        for i in aircraft.indices where aircraft[i].recoveringGround && aircraft[i].underTow && !aircraft[i].stopped && aircraft[i].waitingForTraffic {
+            guard let since=aircraft[i].blockedSince,elapsed-since>=3,elapsed>=aircraft[i].nextYieldAttempt else{continue}
+            aircraft[i].nextYieldAttempt=elapsed+5
+            let f=aircraft[i]
+            guard let destination=f.pendingTaxiRoute.last,
+                  let other=aircraft.first(where:{$0.id==f.yieldTo}) ?? aircraft.first(where:{$0.id==f.blockedBy}) else{continue}
+            let geometry=groundYieldGeometry(f,other)
+            var targets=f.towRelocationStand == nil ? geometry.targets:[destination]
+            if let original=f.route.last,targets.contains(original) {targets.removeAll{$0==original};targets.insert(original,at:0)}
+            for target in targets {
+                let path=geometry.graph.shortestPath(from:f.position,to:target,maximumAccessDistance:2,minimumWidth:f.model.span*0.55)
+                guard !path.isEmpty else{continue}
+                let traffic=aircraft.filter{$0.id != f.id && !$0.airborne && ![.complete,.crashed,.diverted].contains($0.phase)}
+                let resume=f.towRelocationStand == nil ? surface.taxiRoute(from:target,to:destination,minimumWidth:f.model.span*0.55,traffic:traffic):[destination]
+                guard !resume.isEmpty else{continue}
+                aircraft[i].route=surface.rounded([f.position]+path,radius:2)
+                aircraft[i].pendingTaxiRoute=resume
+                aircraft[i].waitsForTugClearance=nil
+                aircraft[i].waitingForTraffic=false;aircraft[i].blockedBy=nil;aircraft[i].blockedSince=nil
+                // Passing a different spur changes where priority traffic must
+                // pass before the towed aircraft may resume its destination.
+                aircraft[i].yieldPassPoint=other.position
+                aircraft[i].yieldPassHeading=other.heading
+                log("\(f.id): tug taking an alternative clear route.")
+                break
+            }
+        }
+    }
+
+    private func refreshBlockedLandingExits() {
+        for i in aircraft.indices where aircraft[i].phase == .landingRoll && elapsed>=aircraft[i].nextTaxiPlan {
+            aircraft[i].nextTaxiPlan=elapsed+2
+            let f=aircraft[i]
+            guard let runway=f.runway,let exit=f.pendingTaxiRoute.last else{continue}
+            let traffic=aircraft.filter{$0.id != f.id && !$0.airborne && ![.complete,.crashed,.diverted].contains($0.phase)}
+            guard traffic.contains(where:{$0.position.distance(to:exit)<(max(f.model.span,f.model.length)+max($0.model.span,$0.model.length))*0.275+20}) else{continue}
+            let a=surface.threshold(runway),b=surface.runwayEnds[runway].1,dx=b.x-a.x,dy=b.y-a.y,length=a.distance(to:b)
+            let progress=((f.position.x-a.x)*dx+(f.position.y-a.y)*dy)/(length*length)
+            let full=surface.landingRoute(runway,model:f.model,destination:surface.gates[f.stand].position,traffic:traffic,minimumProgress:progress+0.025)
+            guard let firstOff=full.firstIndex(where:{!onRunway($0,runway)}),let newExit=full.last,newExit.distance(to:exit)>10 else{continue}
+            aircraft[i].route=Array(full[..<firstOff]);aircraft[i].pendingTaxiRoute=Array(full[firstOff...])
+            aircraft[i].landingRollTotalDistance=aircraft[i].landingRollDistance+max(1,FlightCurves.length(from:f.position,route:aircraft[i].route))
+            log("\(f.id): using a later clear runway exit.")
+        }
+    }
+
     func groundConflict(_ flight:Aircraft,from start:Point,to end:Point,other:Aircraft,margin:Double=1)->Bool {
         guard other.id != flight.id,!other.airborne,![.crashed,.diverted].contains(other.phase),!(other.departure && other.phase == .complete) else{return false}
         let p=other.position,dx=end.x-start.x,dy=end.y-start.y
@@ -594,7 +850,9 @@ final class Simulation {
             let l=f.model.length*0.55+margin*2,w=f.model.span*0.55+margin*2,c=cos(heading),s=sin(heading)
             return profile.map { a,b in Point(x:position.x+a*l*c-b*w*s,y:position.y+a*l*s+b*w*c) }
         }
-        let heading=start.distance(to:end)>0.1 ? atan2(dy,dx)+(flight.phase == .pushback ? .pi : 0) : flight.heading
+        let track=atan2(dy,dx)
+        let reversing=flight.phase == .pushback && (!flight.recoveringGround || cos(track-flight.heading)<0)
+        let heading=start.distance(to:end)>0.1 ? track+(reversing ? .pi:0) : flight.heading
         let one=body(flight,q,heading),two=body(other,p,other.heading)
         if one.contains(where:{AirportFence.contains($0,polygon:two)}) || two.contains(where:{AirportFence.contains($0,polygon:one)}) {return true}
         func cross(_ a:Point,_ b:Point,_ c:Point)->Double {(b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x)}
@@ -606,15 +864,20 @@ final class Simulation {
     }
 
     func plannedTaxiRoute(for flight:Aircraft,to target:Point)->[Point] {
-        // Route proposals use the same time-aware search as committed movement.
-        // A temporarily unavailable time slot must not reject a taxi clearance:
-        // retain the connected geometry and schedule it when the tug is ready.
+        // A clearance needs connected geometry, not a second safe-interval
+        // search. The timed planner calculates and reserves the slot once the
+        // aircraft is actually ready to move.
+        if plansGroundTrafficInBackground || followsAssignedGroundRoutes {
+            let traffic=aircraft.filter{$0.id != flight.id && !$0.airborne && ![.complete,.crashed,.diverted].contains($0.phase)}
+            return surface.taxiRoute(from:flight.position,to:target,minimumWidth:flight.model.span*0.55,traffic:traffic,heading:flight.heading)
+        }
         let snapshot=groundTrafficSnapshot(for:flight)
         if let plan=GroundTrafficPlanner.plan(flight:flight,graph:surface.taxiNetwork,target:target,snapshot:snapshot) {return plan.legs.map(\.to)}
         return surface.taxiRoute(from:flight.position,to:target,minimumWidth:flight.model.span*0.55)
     }
     private func invalidateGroundTraffic() {
-        groundTrafficPlans=[:];groundTrafficRoutes=[:];groundTrafficHolds=[:];groundTrafficRetry=[:];departureQueueWaits=[:]
+        groundTrafficPlans=[:];groundTrafficRoutes=[:];groundTrafficHolds=[:];groundTrafficRetry=[:];blockerScanTime=[:];departureQueueWaits=[:];groundTrafficPending=[:];taxiClearancePending=[:];preparedTaxiPlans=[:]
+        _=backgroundGroundPlanner.drain()
         groundTrafficRevision=surface.revision
     }
     private func trafficManaged(_ f:Aircraft)->Bool {
@@ -683,8 +946,43 @@ final class Simulation {
         }
     }
     private func prepareGroundTraffic(_ step:Double) {
+        if followsAssignedGroundRoutes { refreshDepartureQueues(); return }
         if groundTrafficRevision != surface.revision {invalidateGroundTraffic()}
         refreshDepartureQueues()
+        func accept(_ result:BackgroundGroundTrafficPlanner.Result) {
+            guard groundTrafficPending[result.owner]==result.token else{return}
+            groundTrafficPending.removeValue(forKey:result.owner)
+            guard let i=aircraft.firstIndex(where:{$0.id==result.owner}),trafficReady(aircraft[i]),groundTrafficPlans[result.owner]==nil else{return}
+            guard let raw=result.plan else {
+                if aircraft[i].departureQueuePosition != nil {
+                    let signature=departureQueueSignature(for:aircraft[i])
+                    if !signature.isEmpty {departureQueueWaits[result.owner]=signature}
+                }
+                return
+            }
+            guard raw.phase==aircraft[i].phase,raw.start.distance(to:aircraft[i].position)<0.05 else{return}
+            let snapshot=groundTrafficSnapshot(for:aircraft[i])
+            let plan=raw.shifted(by:snapshot.now-result.snapshotTime)
+            if GroundTrafficPlanner.validated(plan,flight:aircraft[i],against:snapshot) {
+                groundTrafficPlans[result.owner]=plan
+                groundTrafficRetry.removeValue(forKey:result.owner)
+                departureQueueWaits.removeValue(forKey:result.owner)
+                aircraft[i].route=plan.legs.map(\.to)+(aircraft[i].phase == .takeoff ? Array(aircraft[i].route.suffix(1)) : [])
+                groundTrafficRoutes[result.owner]=aircraft[i].route
+            }
+        }
+        for result in backgroundGroundPlanner.drain() {
+            if let preparation=taxiClearancePending[result.owner],preparation.token==result.token {
+                taxiClearancePending.removeValue(forKey:result.owner)
+                guard let i=aircraft.firstIndex(where:{$0.id==result.owner}),aircraft[i].phase == .pushback else{continue}
+                let taxi=result.plan?.legs.map(\.to) ?? preparation.fallback
+                let gate=surface.gates[aircraft[i].stand],target=taxi.first ?? aircraft[i].position
+                let taxiHeading=atan2(target.y-gate.port.y,target.x-gate.port.x)
+                aircraft[i].route=surface.pushback(from:aircraft[i].position,noseHeading:aircraft[i].heading,to:gate.port,taxiHeading:taxiHeading,minimumWidth:aircraft[i].model.span*0.55)
+                aircraft[i].pendingTaxiRoute=taxi
+                if result.plan != nil {preparedTaxiPlans[result.owner]=result}
+            } else {accept(result)}
+        }
         for i in aircraft.indices {
             if let id=aircraft[i].yieldTo,let winner=aircraft.first(where:{$0.id==id}),[.queued,.complete].contains(winner.phase) {
                 // The winner has finished this taxi movement. Its actual held
@@ -708,7 +1006,7 @@ final class Simulation {
         var changed=grounded != tracked
         func cancel(_ id:String) {
             groundTrafficCancellations+=1
-            groundTrafficPlans.removeValue(forKey:id);groundTrafficRoutes.removeValue(forKey:id);groundTrafficRetry.removeValue(forKey:id);departureQueueWaits.removeValue(forKey:id)
+            groundTrafficPlans.removeValue(forKey:id);groundTrafficRoutes.removeValue(forKey:id);groundTrafficRetry.removeValue(forKey:id);departureQueueWaits.removeValue(forKey:id);groundTrafficPending.removeValue(forKey:id)
         }
         for (id,plan) in groundTrafficPlans {
             guard let f=aircraft.first(where:{$0.id==id}),trafficReady(f),f.phase==plan.phase,
@@ -750,8 +1048,13 @@ final class Simulation {
         }
         // Existing committed trajectories keep their slots. New plans are
         // admitted one by one, never from independently stale traffic copies.
-        for i in aircraft.indices where trafficReady(aircraft[i]) && groundTrafficPlans[aircraft[i].id]==nil {
+        for i in aircraft.indices where trafficReady(aircraft[i]) && groundTrafficPlans[aircraft[i].id]==nil && groundTrafficPending[aircraft[i].id]==nil {
             let f=aircraft[i]
+            if let prepared=preparedTaxiPlans.removeValue(forKey:f.id),f.phase == .taxiing {
+                groundTrafficPending[f.id]=prepared.token
+                accept(prepared)
+                if groundTrafficPlans[f.id] != nil {continue}
+            }
             if let held=departureQueueWaits[f.id] {
                 if held==departureQueueSignature(for:f) {continue}
                 departureQueueWaits.removeValue(forKey:f.id)
@@ -761,40 +1064,37 @@ final class Simulation {
             groundTrafficRetry[f.id]=elapsed+2
             let snapshot=groundTrafficSnapshot(for:f)
             groundTrafficSearches+=1
-            var candidate:GroundTrafficPlan?
+            nextGroundTrafficToken+=1
+            let token=nextGroundTrafficToken
+            groundTrafficPending[f.id]=token
+            let request:BackgroundGroundTrafficPlanner.Route
             if f.phase == .taxiing && !f.recoveringGround && f.yieldTo == nil {
                 // The final stand access is already part of the dedicated graph.
-                candidate=GroundTrafficPlanner.plan(flight:f,graph:surface.taxiNetwork,target:f.route.last!,snapshot:snapshot)
+                let fallback = surface.taxiNetwork.hasRestrictions ? nil:f.route
+                request = .graph(surface.taxiNetwork,f.route.last!,fallback:fallback,constraints:surface.network)
             } else {
                 let path=f.phase == .takeoff ? Array(f.route.dropLast()) : f.route
-                candidate=GroundTrafficPlanner.plan(flight:f,route:path,snapshot:snapshot,constraints:surface.network)
+                request = .authored(path,surface.network)
             }
-            // Geometric shortcuts/rounding are never applied AFTER reservation.
-            // Fixed authored routes remain usable when an access point is not
-            // represented in the generic taxi graph.
-            if candidate == nil && !(f.phase == .taxiing && surface.taxiNetwork.hasRestrictions) {candidate=GroundTrafficPlanner.plan(flight:f,route:f.phase == .takeoff ? Array(f.route.dropLast()) : f.route,snapshot:snapshot,constraints:surface.network)}
-            if let plan=candidate,GroundTrafficPlanner.validated(plan,flight:f,against:snapshot) {
-                groundTrafficPlans[f.id]=plan
-                groundTrafficRetry.removeValue(forKey:f.id)
-                departureQueueWaits.removeValue(forKey:f.id)
-                aircraft[i].route=plan.legs.map(\.to)+(f.phase == .takeoff ? Array(f.route.suffix(1)) : [])
-                groundTrafficRoutes[f.id]=aircraft[i].route
-            } else if f.departureQueuePosition != nil {
-                // A held departure queue changes only when membership, routing,
-                // clearance or a committed plan changes. Re-search on that
-                // event instead of polling the identical hold every 2 s.
-                let signature=departureQueueSignature(for:f)
-                if !signature.isEmpty {departureQueueWaits[f.id]=signature}
+            if plansGroundTrafficInBackground {
+                backgroundGroundPlanner.submit(owner:f.id,token:token,flight:f,route:request,snapshot:snapshot,delay:groundTrafficPlanningTestDelay)
+            } else {
+                let plan=BackgroundGroundTrafficPlanner.calculate(flight:f,route:request,snapshot:snapshot,delay:groundTrafficPlanningTestDelay)
+                accept(.init(owner:f.id,token:token,snapshotTime:snapshot.now,plan:plan))
             }
         }
         groundTrafficHolds=Dictionary(uniqueKeysWithValues:aircraft.filter{!$0.airborne && groundTrafficPlans[$0.id]==nil && ![.crashed,.diverted].contains($0.phase) && !($0.departure && $0.phase == .complete)}.map{($0.id,groundTrafficHold(for:$0))})
     }
     private func moveOnGroundSchedule(_ i:Int,step:Double)->Bool {
+        if followsAssignedGroundRoutes { return false }
         guard trafficManaged(aircraft[i]) else{return false}
         let f=aircraft[i]
         guard let plan=groundTrafficPlans[f.id] else {
             _ = taxiMustWait(i) // retain physical blocker metadata for tug recovery
-            if aircraft[i].blockedBy == nil {
+            if aircraft[i].blockedBy == nil, elapsed >= (blockerScanTime[f.id] ?? 0) {
+                // This extended scan only supplies recovery metadata for a
+                // stationary aircraft. Immediate safety checks still run above.
+                blockerScanTime[f.id]=elapsed+0.25
                 // A temporal plan can fail before the short emergency lookahead
                 // reaches the blocker. Recovery still needs that dependency.
                 var prior=f.position,walked=0.0
@@ -869,19 +1169,27 @@ final class Simulation {
         elapsed += step
         if continuousTraffic {updateIncomingTraffic()}
         resolveTaxiDeadlocks()
+        retryBlockedTows()
+        refreshBlockedLandingExits()
         let previous = aircraft
         prepareGroundTraffic(step)
         var movementPlans=aircraft
         for i in aircraft.indices {
+            let checksTraffic = !aircraft[i].stopped && [.taxiing,.pushback,.lineup,.landingRoll,.runwayExit,.landing,.takeoff,.takeoffRoll].contains(aircraft[i].phase) && (aircraft[i].phase != .pushback || aircraft[i].underTow)
+            if !checksTraffic {
+                aircraft[i].waitingForTraffic=false
+                aircraft[i].blockedBy=nil;aircraft[i].blockedSince=nil
+            }
             guard ![.complete, .crashed, .diverted, .servicing, .gateWait, .parked, .awaitingEscort].contains(aircraft[i].phase), !aircraft[i].stopped else { continue }
             if aircraft[i].phase == .pushback && !aircraft[i].underTow { continue }
             aircraft[i].waitingForTraffic=false
-            if aircraft[i].phase == .taxiing,checkCrossing(i) {aircraft[i].groundSpeed=0;continue}
+            if aircraft[i].phase == .taxiing || aircraft[i].recoveringGround {
+                if checkCrossing(i) {aircraft[i].groundSpeed=0;continue}
+            }
             if aircraft[i].groundPause>0 {aircraft[i].groundPause=max(0,aircraft[i].groundPause-step);continue}
             if trafficManaged(aircraft[i]) {
                 movementPlans[i]=aircraft[i]
-                _ = moveOnGroundSchedule(i,step:step)
-                continue
+                if moveOnGroundSchedule(i,step:step) { continue }
             }
             aircraft[i].waitingForTraffic=taxiMustWait(i)
             if aircraft[i].waitingForTraffic {
@@ -924,14 +1232,14 @@ final class Simulation {
                 speed=aircraft[i].groundSpeed
             }
             movementPlans[i]=aircraft[i]
-            move(i, distance: speed * step)
+            move(i, distance: speed * step, maximumTurn:phase == .taxiing || (phase == .pushback && aircraft[i].recoveringGround) ? 0.9*step : .infinity)
             if phase == .landingRoll {aircraft[i].landingRollDistance += speed*step}
             if phase == .lineup || phase == .takeoff { aircraft[i].lineupRemaining=max(0,aircraft[i].lineupRemaining-speed*step) }
             if phase == .approach, aircraft[i].runway != nil {
                 aircraft[i].descentRemainingDistance = max(0,aircraft[i].descentRemainingDistance-speed*step)
                 aircraft[i].altitude = aircraft[i].descentStartAltitude * min(1,aircraft[i].descentRemainingDistance/aircraft[i].descentStartDistance)
             } else if phase == .climbing {
-                aircraft[i].altitude=min(6000,aircraft[i].altitude+step*220)
+                aircraft[i].altitude=min(Self.sharedAirborneAltitude,aircraft[i].altitude+step*220)
             } else if [.takeoffRoll,.takeoff].contains(phase), let r = aircraft[i].runway {
                 let runway = runways[r], dx = runway.end.x - runway.start.x, dy = runway.end.y - runway.start.y
                 let t = ((aircraft[i].position.x-runway.start.x)*dx + (aircraft[i].position.y-runway.start.y)*dy) / (dx*dx+dy*dy)
@@ -943,8 +1251,12 @@ final class Simulation {
         }
         // All non-landing airborne traffic shares one flight level. Aircraft
         // on approach may descend; touchdown/ground phases remain at zero.
-        for i in aircraft.indices where aircraft[i].airborne && aircraft[i].phase != .approach {
+        for i in aircraft.indices where aircraft[i].airborne && !aircraft[i].approachesAfterClimb && ![.approach,.climbing,.takeoffRoll,.takeoff].contains(aircraft[i].phase) {
             aircraft[i].altitude=Self.sharedAirborneAltitude
+        }
+        for i in aircraft.indices where aircraft[i].approachesAfterClimb && aircraft[i].altitude>=aircraft[i].holdingAltitude {
+            aircraft[i].approachesAfterClimb=false
+            assignApproach(i)
         }
         for i in aircraft.indices {
             let turn=atan2(sin(aircraft[i].heading-previous[i].heading),cos(aircraft[i].heading-previous[i].heading))/step
@@ -965,12 +1277,23 @@ final class Simulation {
             finished = true; running = false
             notice = "Shift complete: \(resolved) handled, \(violations) aircraft lost. Score \(score)."
         }
+        publishPresentation(force:finished)
     }
-    private func move(_ i: Int, distance: Double) {
+    private func move(_ i: Int, distance: Double,maximumTurn:Double = .infinity) {
         var remaining = distance
         while remaining > 0, let target = aircraft[i].route.first {
             let p = aircraft[i].position, d = p.distance(to: target)
-            if d > 0.001 { aircraft[i].heading = atan2(target.y - p.y, target.x - p.x) + (aircraft[i].phase == .pushback ? .pi : 0) }
+            if d > 0.001 {
+                let track=atan2(target.y-p.y,target.x-p.x)
+                let reversing=aircraft[i].phase == .pushback && (!aircraft[i].recoveringGround || cos(track-aircraft[i].heading)<0)
+                let desired=track+(reversing ? .pi:0)
+                let delta=atan2(sin(desired-aircraft[i].heading),cos(desired-aircraft[i].heading))
+                if abs(delta)>maximumTurn+0.15 {
+                    aircraft[i].heading+=min(maximumTurn,max(-maximumTurn,delta))
+                    return
+                }
+                aircraft[i].heading=desired
+            }
             if d <= remaining { aircraft[i].position = target; aircraft[i].route.removeFirst(); remaining -= d }
             else { aircraft[i].position = Point(x: p.x+(target.x-p.x)*remaining/d, y: p.y+(target.y-p.y)*remaining/d); remaining = 0 }
         }
@@ -999,13 +1322,24 @@ final class Simulation {
         case .holding: setHoldingRoute(i)
         case .pushback:
             aircraft[i].recoveringGround=false
+            if let stand=aircraft[i].towRelocationStand {
+                aircraft[i].towRelocationStand=nil;aircraft[i].stand=stand
+                aircraft[i].underTow=false;aircraft[i].groundSpeed=0
+                aircraft[i].route=[];aircraft[i].pendingTaxiRoute=[]
+                aircraft[i].heading=surface.gates[stand].heading
+                if aircraft[i].readyToDepart {aircraft[i].phase = .parked}
+                else {beginTurnaround(i)}
+                log("\(aircraft[i].id): tug relocation complete at \(surface.gates[stand].name).")
+                break
+            }
             aircraft[i].underTow = false; aircraft[i].groundSpeed=0;aircraft[i].groundPause=2; aircraft[i].phase = .taxiing; aircraft[i].route = aircraft[i].pendingTaxiRoute; aircraft[i].pendingTaxiRoute = []
         case .taxiing:
             if aircraft[i].departure { aircraft[i].phase = .queued; log("\(aircraft[i].id): holding short. Awaiting your takeoff clearance.") }
             else { beginTurnaround(i) }
         case .approach:
             aircraft[i].altitude = 0; aircraft[i].phase = .landingRoll; aircraft[i].groundSpeed=aircraft[i].model.speed(for:.landingRoll);aircraft[i].landingRollDistance=0
-            let full=surface.landingRoute(aircraft[i].runway!,model:aircraft[i].model)
+            let traffic=aircraft.filter{$0.id != aircraft[i].id && !$0.airborne && ![.complete,.crashed,.diverted].contains($0.phase)}
+            let full=surface.landingRoute(aircraft[i].runway!,model:aircraft[i].model,destination:surface.gates[aircraft[i].stand].position,traffic:traffic)
             if let r=aircraft[i].runway,let firstOff=full.firstIndex(where:{!onRunway($0,r)}) {
                 aircraft[i].route=Array(full[..<firstOff]);aircraft[i].pendingTaxiRoute=Array(full[firstOff...])
             } else {aircraft[i].route=full;aircraft[i].pendingTaxiRoute=[]}
@@ -1070,7 +1404,7 @@ final class Simulation {
         }
     }
     private func collide(_ i: Int, _ j: Int, at position: Point) {
-        let affected=Set(runways.indices.filter{onRunway(position,$0)})
+        let affected=Set(runways.indices.filter{r in onRunway(position,r) || (occupiesRunway(aircraft[i],r) && occupiesRunway(aircraft[j],r) && (activeRunwayOperation(aircraft[i],r) || activeRunwayOperation(aircraft[j],r)))})
         let incident = AirportIncident(position: position, runwayIDs: affected, aircraftIDs: [aircraft[i].id, aircraft[j].id], time: elapsed)
         incidents.append(incident)
         for f in [i,j] {

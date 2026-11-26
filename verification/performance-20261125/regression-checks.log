@@ -1,0 +1,460 @@
+/Users/pablo/Engineering/AirTrafficControl/AirTrafficControl/AirportScene.swift:17:38: warning: call to main actor-isolated instance method 'childNode(withName:)' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 15 |         let bank:SKTransformNode,sprite:SKSpriteNode,beacon:SKNode,nav:[SKNode],service:SKLabelNode
+ 16 |         init(_ root:SKNode,asset:String) {
+ 17 |             self.root=root;body=root.childNode(withName:"body")!;shadow=root.childNode(withName:"shadow")!
+    |                                      `- warning: call to main actor-isolated instance method 'childNode(withName:)' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 18 |             bank=body.childNode(withName:"bank") as! SKTransformNode
+ 19 |             sprite=bank.childNode(withName:asset) as! SKSpriteNode
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/SpriteKit.framework/Headers/SKNode.h:213:1: note: calls to instance method 'childNode(withName:)' from outside of its actor context are implicitly asynchronous
+211 | - (void)moveToParent:(SKNode *)parent API_AVAILABLE(ios(9.0), tvos(9.0), watchos(2.0), macos(10.11));
+212 | 
+213 | - (nullable SKNode *)childNodeWithName:(NSString *)name;
+    | |- note: calls to instance method 'childNode(withName:)' from outside of its actor context are implicitly asynchronous
+    | `- note: main actor isolation inferred from inheritance from class 'NSResponder'
+214 | 
+215 | - (void)enumerateChildNodesWithName:(NSString *)name usingBlock:(void (^)(SKNode *node, BOOL *stop))block;
+
+/Users/pablo/Engineering/AirTrafficControl/AirTrafficControl/AirportScene.swift:17:78: warning: call to main actor-isolated instance method 'childNode(withName:)' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 15 |         let bank:SKTransformNode,sprite:SKSpriteNode,beacon:SKNode,nav:[SKNode],service:SKLabelNode
+ 16 |         init(_ root:SKNode,asset:String) {
+ 17 |             self.root=root;body=root.childNode(withName:"body")!;shadow=root.childNode(withName:"shadow")!
+    |                                                                              `- warning: call to main actor-isolated instance method 'childNode(withName:)' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 18 |             bank=body.childNode(withName:"bank") as! SKTransformNode
+ 19 |             sprite=bank.childNode(withName:asset) as! SKSpriteNode
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/SpriteKit.framework/Headers/SKNode.h:213:1: note: calls to instance method 'childNode(withName:)' from outside of its actor context are implicitly asynchronous
+211 | - (void)moveToParent:(SKNode *)parent API_AVAILABLE(ios(9.0), tvos(9.0), watchos(2.0), macos(10.11));
+212 | 
+213 | - (nullable SKNode *)childNodeWithName:(NSString *)name;
+    | |- note: calls to instance method 'childNode(withName:)' from outside of its actor context are implicitly asynchronous
+    | `- note: main actor isolation inferred from inheritance from class 'NSResponder'
+214 | 
+215 | - (void)enumerateChildNodesWithName:(NSString *)name usingBlock:(void (^)(SKNode *node, BOOL *stop))block;
+
+/Users/pablo/Engineering/AirTrafficControl/AirTrafficControl/AirportScene.swift:18:23: warning: call to main actor-isolated instance method 'childNode(withName:)' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 16 |         init(_ root:SKNode,asset:String) {
+ 17 |             self.root=root;body=root.childNode(withName:"body")!;shadow=root.childNode(withName:"shadow")!
+ 18 |             bank=body.childNode(withName:"bank") as! SKTransformNode
+    |                       `- warning: call to main actor-isolated instance method 'childNode(withName:)' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 19 |             sprite=bank.childNode(withName:asset) as! SKSpriteNode
+ 20 |             beacon=bank.childNode(withName:"aircraftBeacon")!
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/SpriteKit.framework/Headers/SKNode.h:213:1: note: calls to instance method 'childNode(withName:)' from outside of its actor context are implicitly asynchronous
+211 | - (void)moveToParent:(SKNode *)parent API_AVAILABLE(ios(9.0), tvos(9.0), watchos(2.0), macos(10.11));
+212 | 
+213 | - (nullable SKNode *)childNodeWithName:(NSString *)name;
+    | |- note: calls to instance method 'childNode(withName:)' from outside of its actor context are implicitly asynchronous
+    | `- note: main actor isolation inferred from inheritance from class 'NSResponder'
+214 | 
+215 | - (void)enumerateChildNodesWithName:(NSString *)name usingBlock:(void (^)(SKNode *node, BOOL *stop))block;
+
+/Users/pablo/Engineering/AirTrafficControl/AirTrafficControl/AirportScene.swift:19:25: warning: call to main actor-isolated instance method 'childNode(withName:)' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 17 |             self.root=root;body=root.childNode(withName:"body")!;shadow=root.childNode(withName:"shadow")!
+ 18 |             bank=body.childNode(withName:"bank") as! SKTransformNode
+ 19 |             sprite=bank.childNode(withName:asset) as! SKSpriteNode
+    |                         `- warning: call to main actor-isolated instance method 'childNode(withName:)' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 20 |             beacon=bank.childNode(withName:"aircraftBeacon")!
+ 21 |             nav=[bank.childNode(withName:"nav-port")!,bank.childNode(withName:"nav-starboard")!]
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/SpriteKit.framework/Headers/SKNode.h:213:1: note: calls to instance method 'childNode(withName:)' from outside of its actor context are implicitly asynchronous
+211 | - (void)moveToParent:(SKNode *)parent API_AVAILABLE(ios(9.0), tvos(9.0), watchos(2.0), macos(10.11));
+212 | 
+213 | - (nullable SKNode *)childNodeWithName:(NSString *)name;
+    | |- note: calls to instance method 'childNode(withName:)' from outside of its actor context are implicitly asynchronous
+    | `- note: main actor isolation inferred from inheritance from class 'NSResponder'
+214 | 
+215 | - (void)enumerateChildNodesWithName:(NSString *)name usingBlock:(void (^)(SKNode *node, BOOL *stop))block;
+
+/Users/pablo/Engineering/AirTrafficControl/AirTrafficControl/AirportScene.swift:20:25: warning: call to main actor-isolated instance method 'childNode(withName:)' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 18 |             bank=body.childNode(withName:"bank") as! SKTransformNode
+ 19 |             sprite=bank.childNode(withName:asset) as! SKSpriteNode
+ 20 |             beacon=bank.childNode(withName:"aircraftBeacon")!
+    |                         `- warning: call to main actor-isolated instance method 'childNode(withName:)' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 21 |             nav=[bank.childNode(withName:"nav-port")!,bank.childNode(withName:"nav-starboard")!]
+ 22 |             halo=root.childNode(withName:"halo")!;title=root.childNode(withName:"title")!;plate=root.childNode(withName:"plate")!
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/SpriteKit.framework/Headers/SKNode.h:213:1: note: calls to instance method 'childNode(withName:)' from outside of its actor context are implicitly asynchronous
+211 | - (void)moveToParent:(SKNode *)parent API_AVAILABLE(ios(9.0), tvos(9.0), watchos(2.0), macos(10.11));
+212 | 
+213 | - (nullable SKNode *)childNodeWithName:(NSString *)name;
+    | |- note: calls to instance method 'childNode(withName:)' from outside of its actor context are implicitly asynchronous
+    | `- note: main actor isolation inferred from inheritance from class 'NSResponder'
+214 | 
+215 | - (void)enumerateChildNodesWithName:(NSString *)name usingBlock:(void (^)(SKNode *node, BOOL *stop))block;
+
+/Users/pablo/Engineering/AirTrafficControl/AirTrafficControl/AirportScene.swift:21:23: warning: call to main actor-isolated instance method 'childNode(withName:)' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 19 |             sprite=bank.childNode(withName:asset) as! SKSpriteNode
+ 20 |             beacon=bank.childNode(withName:"aircraftBeacon")!
+ 21 |             nav=[bank.childNode(withName:"nav-port")!,bank.childNode(withName:"nav-starboard")!]
+    |                       `- warning: call to main actor-isolated instance method 'childNode(withName:)' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 22 |             halo=root.childNode(withName:"halo")!;title=root.childNode(withName:"title")!;plate=root.childNode(withName:"plate")!
+ 23 |             type=root.childNode(withName:"type")!;ready=root.childNode(withName:"readyMarker")!
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/SpriteKit.framework/Headers/SKNode.h:213:1: note: calls to instance method 'childNode(withName:)' from outside of its actor context are implicitly asynchronous
+211 | - (void)moveToParent:(SKNode *)parent API_AVAILABLE(ios(9.0), tvos(9.0), watchos(2.0), macos(10.11));
+212 | 
+213 | - (nullable SKNode *)childNodeWithName:(NSString *)name;
+    | |- note: calls to instance method 'childNode(withName:)' from outside of its actor context are implicitly asynchronous
+    | `- note: main actor isolation inferred from inheritance from class 'NSResponder'
+214 | 
+215 | - (void)enumerateChildNodesWithName:(NSString *)name usingBlock:(void (^)(SKNode *node, BOOL *stop))block;
+
+/Users/pablo/Engineering/AirTrafficControl/AirTrafficControl/AirportScene.swift:21:60: warning: call to main actor-isolated instance method 'childNode(withName:)' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 19 |             sprite=bank.childNode(withName:asset) as! SKSpriteNode
+ 20 |             beacon=bank.childNode(withName:"aircraftBeacon")!
+ 21 |             nav=[bank.childNode(withName:"nav-port")!,bank.childNode(withName:"nav-starboard")!]
+    |                                                            `- warning: call to main actor-isolated instance method 'childNode(withName:)' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 22 |             halo=root.childNode(withName:"halo")!;title=root.childNode(withName:"title")!;plate=root.childNode(withName:"plate")!
+ 23 |             type=root.childNode(withName:"type")!;ready=root.childNode(withName:"readyMarker")!
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/SpriteKit.framework/Headers/SKNode.h:213:1: note: calls to instance method 'childNode(withName:)' from outside of its actor context are implicitly asynchronous
+211 | - (void)moveToParent:(SKNode *)parent API_AVAILABLE(ios(9.0), tvos(9.0), watchos(2.0), macos(10.11));
+212 | 
+213 | - (nullable SKNode *)childNodeWithName:(NSString *)name;
+    | |- note: calls to instance method 'childNode(withName:)' from outside of its actor context are implicitly asynchronous
+    | `- note: main actor isolation inferred from inheritance from class 'NSResponder'
+214 | 
+215 | - (void)enumerateChildNodesWithName:(NSString *)name usingBlock:(void (^)(SKNode *node, BOOL *stop))block;
+
+/Users/pablo/Engineering/AirTrafficControl/AirTrafficControl/AirportScene.swift:22:23: warning: call to main actor-isolated instance method 'childNode(withName:)' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 20 |             beacon=bank.childNode(withName:"aircraftBeacon")!
+ 21 |             nav=[bank.childNode(withName:"nav-port")!,bank.childNode(withName:"nav-starboard")!]
+ 22 |             halo=root.childNode(withName:"halo")!;title=root.childNode(withName:"title")!;plate=root.childNode(withName:"plate")!
+    |                       `- warning: call to main actor-isolated instance method 'childNode(withName:)' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 23 |             type=root.childNode(withName:"type")!;ready=root.childNode(withName:"readyMarker")!
+ 24 |             service=root.childNode(withName:"serviceTimer") as! SKLabelNode
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/SpriteKit.framework/Headers/SKNode.h:213:1: note: calls to instance method 'childNode(withName:)' from outside of its actor context are implicitly asynchronous
+211 | - (void)moveToParent:(SKNode *)parent API_AVAILABLE(ios(9.0), tvos(9.0), watchos(2.0), macos(10.11));
+212 | 
+213 | - (nullable SKNode *)childNodeWithName:(NSString *)name;
+    | |- note: calls to instance method 'childNode(withName:)' from outside of its actor context are implicitly asynchronous
+    | `- note: main actor isolation inferred from inheritance from class 'NSResponder'
+214 | 
+215 | - (void)enumerateChildNodesWithName:(NSString *)name usingBlock:(void (^)(SKNode *node, BOOL *stop))block;
+
+/Users/pablo/Engineering/AirTrafficControl/AirTrafficControl/AirportScene.swift:22:62: warning: call to main actor-isolated instance method 'childNode(withName:)' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 20 |             beacon=bank.childNode(withName:"aircraftBeacon")!
+ 21 |             nav=[bank.childNode(withName:"nav-port")!,bank.childNode(withName:"nav-starboard")!]
+ 22 |             halo=root.childNode(withName:"halo")!;title=root.childNode(withName:"title")!;plate=root.childNode(withName:"plate")!
+    |                                                              `- warning: call to main actor-isolated instance method 'childNode(withName:)' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 23 |             type=root.childNode(withName:"type")!;ready=root.childNode(withName:"readyMarker")!
+ 24 |             service=root.childNode(withName:"serviceTimer") as! SKLabelNode
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/SpriteKit.framework/Headers/SKNode.h:213:1: note: calls to instance method 'childNode(withName:)' from outside of its actor context are implicitly asynchronous
+211 | - (void)moveToParent:(SKNode *)parent API_AVAILABLE(ios(9.0), tvos(9.0), watchos(2.0), macos(10.11));
+212 | 
+213 | - (nullable SKNode *)childNodeWithName:(NSString *)name;
+    | |- note: calls to instance method 'childNode(withName:)' from outside of its actor context are implicitly asynchronous
+    | `- note: main actor isolation inferred from inheritance from class 'NSResponder'
+214 | 
+215 | - (void)enumerateChildNodesWithName:(NSString *)name usingBlock:(void (^)(SKNode *node, BOOL *stop))block;
+
+/Users/pablo/Engineering/AirTrafficControl/AirTrafficControl/AirportScene.swift:22:102: warning: call to main actor-isolated instance method 'childNode(withName:)' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 20 |             beacon=bank.childNode(withName:"aircraftBeacon")!
+ 21 |             nav=[bank.childNode(withName:"nav-port")!,bank.childNode(withName:"nav-starboard")!]
+ 22 |             halo=root.childNode(withName:"halo")!;title=root.childNode(withName:"title")!;plate=root.childNode(withName:"plate")!
+    |                                                                                                      `- warning: call to main actor-isolated instance method 'childNode(withName:)' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 23 |             type=root.childNode(withName:"type")!;ready=root.childNode(withName:"readyMarker")!
+ 24 |             service=root.childNode(withName:"serviceTimer") as! SKLabelNode
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/SpriteKit.framework/Headers/SKNode.h:213:1: note: calls to instance method 'childNode(withName:)' from outside of its actor context are implicitly asynchronous
+211 | - (void)moveToParent:(SKNode *)parent API_AVAILABLE(ios(9.0), tvos(9.0), watchos(2.0), macos(10.11));
+212 | 
+213 | - (nullable SKNode *)childNodeWithName:(NSString *)name;
+    | |- note: calls to instance method 'childNode(withName:)' from outside of its actor context are implicitly asynchronous
+    | `- note: main actor isolation inferred from inheritance from class 'NSResponder'
+214 | 
+215 | - (void)enumerateChildNodesWithName:(NSString *)name usingBlock:(void (^)(SKNode *node, BOOL *stop))block;
+
+/Users/pablo/Engineering/AirTrafficControl/AirTrafficControl/AirportScene.swift:23:23: warning: call to main actor-isolated instance method 'childNode(withName:)' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 21 |             nav=[bank.childNode(withName:"nav-port")!,bank.childNode(withName:"nav-starboard")!]
+ 22 |             halo=root.childNode(withName:"halo")!;title=root.childNode(withName:"title")!;plate=root.childNode(withName:"plate")!
+ 23 |             type=root.childNode(withName:"type")!;ready=root.childNode(withName:"readyMarker")!
+    |                       `- warning: call to main actor-isolated instance method 'childNode(withName:)' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 24 |             service=root.childNode(withName:"serviceTimer") as! SKLabelNode
+ 25 |             sprite.color = .black
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/SpriteKit.framework/Headers/SKNode.h:213:1: note: calls to instance method 'childNode(withName:)' from outside of its actor context are implicitly asynchronous
+211 | - (void)moveToParent:(SKNode *)parent API_AVAILABLE(ios(9.0), tvos(9.0), watchos(2.0), macos(10.11));
+212 | 
+213 | - (nullable SKNode *)childNodeWithName:(NSString *)name;
+    | |- note: calls to instance method 'childNode(withName:)' from outside of its actor context are implicitly asynchronous
+    | `- note: main actor isolation inferred from inheritance from class 'NSResponder'
+214 | 
+215 | - (void)enumerateChildNodesWithName:(NSString *)name usingBlock:(void (^)(SKNode *node, BOOL *stop))block;
+
+/Users/pablo/Engineering/AirTrafficControl/AirTrafficControl/AirportScene.swift:23:62: warning: call to main actor-isolated instance method 'childNode(withName:)' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 21 |             nav=[bank.childNode(withName:"nav-port")!,bank.childNode(withName:"nav-starboard")!]
+ 22 |             halo=root.childNode(withName:"halo")!;title=root.childNode(withName:"title")!;plate=root.childNode(withName:"plate")!
+ 23 |             type=root.childNode(withName:"type")!;ready=root.childNode(withName:"readyMarker")!
+    |                                                              `- warning: call to main actor-isolated instance method 'childNode(withName:)' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 24 |             service=root.childNode(withName:"serviceTimer") as! SKLabelNode
+ 25 |             sprite.color = .black
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/SpriteKit.framework/Headers/SKNode.h:213:1: note: calls to instance method 'childNode(withName:)' from outside of its actor context are implicitly asynchronous
+211 | - (void)moveToParent:(SKNode *)parent API_AVAILABLE(ios(9.0), tvos(9.0), watchos(2.0), macos(10.11));
+212 | 
+213 | - (nullable SKNode *)childNodeWithName:(NSString *)name;
+    | |- note: calls to instance method 'childNode(withName:)' from outside of its actor context are implicitly asynchronous
+    | `- note: main actor isolation inferred from inheritance from class 'NSResponder'
+214 | 
+215 | - (void)enumerateChildNodesWithName:(NSString *)name usingBlock:(void (^)(SKNode *node, BOOL *stop))block;
+
+/Users/pablo/Engineering/AirTrafficControl/AirTrafficControl/AirportScene.swift:24:26: warning: call to main actor-isolated instance method 'childNode(withName:)' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 22 |             halo=root.childNode(withName:"halo")!;title=root.childNode(withName:"title")!;plate=root.childNode(withName:"plate")!
+ 23 |             type=root.childNode(withName:"type")!;ready=root.childNode(withName:"readyMarker")!
+ 24 |             service=root.childNode(withName:"serviceTimer") as! SKLabelNode
+    |                          `- warning: call to main actor-isolated instance method 'childNode(withName:)' in a synchronous nonisolated context [#ActorIsolatedCall]
+ 25 |             sprite.color = .black
+ 26 |         }
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/SpriteKit.framework/Headers/SKNode.h:213:1: note: calls to instance method 'childNode(withName:)' from outside of its actor context are implicitly asynchronous
+211 | - (void)moveToParent:(SKNode *)parent API_AVAILABLE(ios(9.0), tvos(9.0), watchos(2.0), macos(10.11));
+212 | 
+213 | - (nullable SKNode *)childNodeWithName:(NSString *)name;
+    | |- note: calls to instance method 'childNode(withName:)' from outside of its actor context are implicitly asynchronous
+    | `- note: main actor isolation inferred from inheritance from class 'NSResponder'
+214 | 
+215 | - (void)enumerateChildNodesWithName:(NSString *)name usingBlock:(void (^)(SKNode *node, BOOL *stop))block;
+
+/Users/pablo/Engineering/AirTrafficControl/AirTrafficControl/AirportScene.swift:25:20: warning: main actor-isolated property 'color' can not be mutated from a nonisolated context
+ 23 |             type=root.childNode(withName:"type")!;ready=root.childNode(withName:"readyMarker")!
+ 24 |             service=root.childNode(withName:"serviceTimer") as! SKLabelNode
+ 25 |             sprite.color = .black
+    |                    `- warning: main actor-isolated property 'color' can not be mutated from a nonisolated context
+ 26 |         }
+ 27 |     }
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/SpriteKit.framework/Headers/SKSpriteNode.h:147:40: note: mutation of this property is only permitted within the actor
+145 |  Base color for the sprite (If no texture is present, the color still is drawn)
+146 |  */
+147 | @property (nonatomic, retain) SKColor *color;
+    |                                        `- note: mutation of this property is only permitted within the actor
+148 | 
+149 | /**
+
+[#ActorIsolatedCall]: <https://docs.swift.org/compiler/documentation/diagnostics/actor-isolated-call>
+PERFORMANCE START checks
+RUN:OperationalGraphChecks
+PASS:endpoint junctions connect, isolated nodes disappear, valid stand spurs and source provenance remain
+PASS:unlabelled crossings conflict without invented turns; explicit junction annotations control connectivity
+PASS:distance and timed planners both enforce forbidden turns
+PASS:one-way access survives interior projections/splits; width and speed limits cannot be bypassed
+PASS:finite runway boundaries split only the actual strip; extension taxi lanes stay connected
+PASS:Delhi compiles with all aircraft source-edge IDs, 19 stand accesses, no isolated taxi nodes 926 1032 taxi 829 925 conflicts 57
+PASS:tug recovery keeps exactly one live request while a previous tug returns home
+PERFORMANCE START checks
+RUN:AirportPackageChecks
+PASS:Delhi package preserves source bytes; a second airport has independent geometry, fleet, identities, service inventory and commercial cargo purpose
+PASS:rotation, renaming and changed image dimensions preserve routing/permissions without cross-airport cache leakage
+PASS:invalid schema, references, duplicate identities, unavailable services, resource paths and image calibration are rejected
+PASS:second data-only airport completes cargo departure and passenger arrival/services/departure with all crews home 463
+PERFORMANCE START checks
+RUN:GroundTrafficPlannerChecks
+PASS:shared calibrated cruise, turning, reaction, acceleration and braking integrate to the exact endpoint
+PASS:unjoined geometric junction conflict produces an explicit scheduled wait
+PASS:opposing entry is refused without an exit; connected independent detour remains usable
+PASS:stopped aircraft do not disappear; changed traffic/graph rejects stale commits; removal permits replanning
+PASS:search reaches a later safe interval instead of keeping one distance label per node
+PASS:manual hold freezes position, cancels schedules, resumes from actual position; reset clears plans
+PASS:unrelated schedules keep their slots; changed held footprints cancel dependent plans; removed blockers release traffic
+PASS:stationary heading changes invalidate affected footprint reservations
+PASS:departure queue exposes positions, holds without polling, and advances after leader clearance
+PASS:one background search per movement; unrelated aircraft continues while a taxi slot is calculated
+PERFORMANCE START checks
+RUN:GroundTrafficLifecycleChecks
+PASS:centreline landing, scheduled taxi, automatic turnaround, ready state and all crews home 233
+PASS:serviced arrival departs through tug, scheduled taxi and tower takeoff; full lifecycle finishes 362
+PERFORMANCE START checks
+RUN:GroundTrafficCompletionChecks
+PROGRESS 17 0 0 plans 0 searches 0 cancels 0
+STATE DEL451 pushback Point(x: 635.7195, y: 398.40032) false nil false false 34
+STATE DEL830 pushback Point(x: 622.92818, y: 457.86502) false nil false false 34
+STATE DEL116 pushback Point(x: 690.70512, y: 508.10029) false nil false false 34
+STATE DEL602 pushback Point(x: 1144.9572, y: 294.49263) false nil false false 34
+STATE DEL917 pushback Point(x: 1109.76895, y: 326.66622) false nil false false 34
+STATE DEL305 pushback Point(x: 1117.32848, y: 292.10838) false nil false false 34
+STATE MIL301 taxiing Point(x: 887.9, y: 402.0) false nil false false 89
+STATE MIL302 taxiing Point(x: 909.0, y: 407.0) false nil false false 85
+STATE MIL303 taxiing Point(x: 860.0, y: 398.0) false nil false false 68
+PROGRESS 17 99 1 plans 4 searches 104 cancels 12
+STATE DEL451 taxiing Point(x: 625.3588819555902, y: 355.7819844713606) true nil false false 256
+STATE DEL830 takeoffRoll Point(x: 783.8210385876765, y: 614.9433646183144) false nil false false 1
+STATE DEL116 complete Point(x: 1812.0, y: 812.846024130023) false nil false false 0
+STATE DEL602 pushback Point(x: 1144.9572, y: 294.49263) true nil false true 34
+STATE DEL917 lineup Point(x: 764.7205676300728, y: 277.7692528237871) false nil false false 232
+STATE DEL305 pushback Point(x: 1117.32848, y: 292.10838) true nil false true 34
+STATE MIL301 taxiing Point(x: 769.6002619117418, y: 354.009402414904) false nil false false 3
+STATE MIL302 climbing Point(x: 1481.4608573128967, y: 470.1132557486973) false nil false false 1
+STATE MIL303 taxiing Point(x: 622.9230328115789, y: 286.71240461307957) false nil false false 13
+PROGRESS 17 199 5 plans 1 searches 202 cancels 17
+STATE DEL451 complete Point(x: 1812.0, y: 543.1527361286203) false nil false false 0
+STATE DEL830 complete Point(x: 1812.0, y: 825.5492986770321) false nil false false 0
+STATE DEL116 complete Point(x: 1812.0, y: 812.846024130023) false nil false false 0
+STATE DEL602 pushback Point(x: 1144.9572, y: 294.49263) true Optional("DEL305") false true 34
+STATE DEL917 complete Point(x: 1812.0, y: 546.6809595349005) false nil false false 0
+STATE DEL305 pushback Point(x: 1117.32848, y: 292.10838) true Optional("DEL602") false true 34
+STATE MIL301 lineup Point(x: 702.1351348776358, y: 300.83341745871087) false nil false false 9
+STATE MIL302 complete Point(x: 1812.0, y: 543.1527361285973) false nil false false 0
+STATE MIL303 queued Point(x: 718.6765350389679, y: 248.0210413491513) false nil false false 0
+PROGRESS 17 299 7 plans 0 searches 300 cancels 19
+STATE DEL451 complete Point(x: 1812.0, y: 543.1527361286203) false nil false false 0
+STATE DEL830 complete Point(x: 1812.0, y: 825.5492986770321) false nil false false 0
+STATE DEL116 complete Point(x: 1812.0, y: 812.846024130023) false nil false false 0
+STATE DEL602 pushback Point(x: 1144.9572, y: 294.49263) true nil false true 34
+STATE DEL917 complete Point(x: 1812.0, y: 546.6809595349005) false nil false false 0
+STATE DEL305 pushback Point(x: 1117.32848, y: 292.10838) true nil false true 34
+STATE MIL301 complete Point(x: 1812.0, y: 543.1527361285973) false nil false false 0
+STATE MIL302 complete Point(x: 1812.0, y: 543.1527361285973) false nil false false 0
+STATE MIL303 complete Point(x: 1812.0, y: 550.6726884981506) false nil false false 0
+PROGRESS 17 400 7 plans 0 searches 400 cancels 19
+STATE DEL451 complete Point(x: 1812.0, y: 543.1527361286203) false nil false false 0
+STATE DEL830 complete Point(x: 1812.0, y: 825.5492986770321) false nil false false 0
+STATE DEL116 complete Point(x: 1812.0, y: 812.846024130023) false nil false false 0
+STATE DEL602 pushback Point(x: 1144.9572, y: 294.49263) true nil false true 34
+STATE DEL917 complete Point(x: 1812.0, y: 546.6809595349005) false nil false false 0
+STATE DEL305 pushback Point(x: 1117.32848, y: 292.10838) true nil false true 34
+STATE MIL301 complete Point(x: 1812.0, y: 543.1527361285973) false nil false false 0
+STATE MIL302 complete Point(x: 1812.0, y: 543.1527361285973) false nil false false 0
+STATE MIL303 complete Point(x: 1812.0, y: 550.6726884981506) false nil false false 0
+PROGRESS 17 500 7 plans 0 searches 500 cancels 19
+STATE DEL451 complete Point(x: 1812.0, y: 543.1527361286203) false nil false false 0
+STATE DEL830 complete Point(x: 1812.0, y: 825.5492986770321) false nil false false 0
+STATE DEL116 complete Point(x: 1812.0, y: 812.846024130023) false nil false false 0
+STATE DEL602 pushback Point(x: 1144.9572, y: 294.49263) true Optional("DEL305") false true 34
+STATE DEL917 complete Point(x: 1812.0, y: 546.6809595349005) false nil false false 0
+STATE DEL305 pushback Point(x: 1117.32848, y: 292.10838) true Optional("DEL602") false true 34
+STATE MIL301 complete Point(x: 1812.0, y: 543.1527361285973) false nil false false 0
+STATE MIL302 complete Point(x: 1812.0, y: 543.1527361285973) false nil false false 0
+STATE MIL303 complete Point(x: 1812.0, y: 550.6726884981506) false nil false false 0
+PROGRESS 17 600 7 plans 0 searches 600 cancels 19
+STATE DEL451 complete Point(x: 1812.0, y: 543.1527361286203) false nil false false 0
+STATE DEL830 complete Point(x: 1812.0, y: 825.5492986770321) false nil false false 0
+STATE DEL116 complete Point(x: 1812.0, y: 812.846024130023) false nil false false 0
+STATE DEL602 pushback Point(x: 1144.9572, y: 294.49263) true nil false true 34
+STATE DEL917 complete Point(x: 1812.0, y: 546.6809595349005) false nil false false 0
+STATE DEL305 pushback Point(x: 1117.32848, y: 292.10838) true nil false true 34
+STATE MIL301 complete Point(x: 1812.0, y: 543.1527361285973) false nil false false 0
+STATE MIL302 complete Point(x: 1812.0, y: 543.1527361285973) false nil false false 0
+STATE MIL303 complete Point(x: 1812.0, y: 550.6726884981506) false nil false false 0
+PROGRESS 17 700 7 plans 0 searches 700 cancels 19
+STATE DEL451 complete Point(x: 1812.0, y: 543.1527361286203) false nil false false 0
+STATE DEL830 complete Point(x: 1812.0, y: 825.5492986770321) false nil false false 0
+STATE DEL116 complete Point(x: 1812.0, y: 812.846024130023) false nil false false 0
+STATE DEL602 pushback Point(x: 1144.9572, y: 294.49263) true nil false true 34
+STATE DEL917 complete Point(x: 1812.0, y: 546.6809595349005) false nil false false 0
+STATE DEL305 pushback Point(x: 1117.32848, y: 292.10838) true nil false true 34
+STATE MIL301 complete Point(x: 1812.0, y: 543.1527361285973) false nil false false 0
+STATE MIL302 complete Point(x: 1812.0, y: 543.1527361285973) false nil false false 0
+STATE MIL303 complete Point(x: 1812.0, y: 550.6726884981506) false nil false false 0
+PROGRESS 17 800 7 plans 0 searches 800 cancels 19
+STATE DEL451 complete Point(x: 1812.0, y: 543.1527361286203) false nil false false 0
+STATE DEL830 complete Point(x: 1812.0, y: 825.5492986770321) false nil false false 0
+STATE DEL116 complete Point(x: 1812.0, y: 812.846024130023) false nil false false 0
+STATE DEL602 pushback Point(x: 1144.9572, y: 294.49263) true Optional("DEL305") false true 34
+STATE DEL917 complete Point(x: 1812.0, y: 546.6809595349005) false nil false false 0
+STATE DEL305 pushback Point(x: 1117.32848, y: 292.10838) true Optional("DEL602") false true 34
+STATE MIL301 complete Point(x: 1812.0, y: 543.1527361285973) false nil false false 0
+STATE MIL302 complete Point(x: 1812.0, y: 543.1527361285973) false nil false false 0
+STATE MIL303 complete Point(x: 1812.0, y: 550.6726884981506) false nil false false 0
+PROGRESS 17 900 7 plans 0 searches 900 cancels 19
+STATE DEL451 complete Point(x: 1812.0, y: 543.1527361286203) false nil false false 0
+STATE DEL830 complete Point(x: 1812.0, y: 825.5492986770321) false nil false false 0
+STATE DEL116 complete Point(x: 1812.0, y: 812.846024130023) false nil false false 0
+STATE DEL602 pushback Point(x: 1144.9572, y: 294.49263) true nil false true 34
+STATE DEL917 complete Point(x: 1812.0, y: 546.6809595349005) false nil false false 0
+STATE DEL305 pushback Point(x: 1117.32848, y: 292.10838) true nil false true 34
+STATE MIL301 complete Point(x: 1812.0, y: 543.1527361285973) false nil false false 0
+STATE MIL302 complete Point(x: 1812.0, y: 543.1527361285973) false nil false false 0
+STATE MIL303 complete Point(x: 1812.0, y: 550.6726884981506) false nil false false 0
+PROGRESS 17 1000 7 plans 0 searches 1000 cancels 19
+STATE DEL451 complete Point(x: 1812.0, y: 543.1527361286203) false nil false false 0
+STATE DEL830 complete Point(x: 1812.0, y: 825.5492986770321) false nil false false 0
+STATE DEL116 complete Point(x: 1812.0, y: 812.846024130023) false nil false false 0
+STATE DEL602 pushback Point(x: 1144.9572, y: 294.49263) true nil false true 34
+STATE DEL917 complete Point(x: 1812.0, y: 546.6809595349005) false nil false false 0
+STATE DEL305 pushback Point(x: 1117.32848, y: 292.10838) true nil false true 34
+STATE MIL301 complete Point(x: 1812.0, y: 543.1527361285973) false nil false false 0
+STATE MIL302 complete Point(x: 1812.0, y: 543.1527361285973) false nil false false 0
+STATE MIL303 complete Point(x: 1812.0, y: 550.6726884981506) false nil false false 0
+PROGRESS 17 1100 7 plans 0 searches 1097 cancels 19
+STATE DEL451 complete Point(x: 1812.0, y: 543.1527361286203) false nil false false 0
+STATE DEL830 complete Point(x: 1812.0, y: 825.5492986770321) false nil false false 0
+STATE DEL116 complete Point(x: 1812.0, y: 812.846024130023) false nil false false 0
+STATE DEL602 pushback Point(x: 1144.9572, y: 294.49263) true Optional("DEL305") false true 34
+STATE DEL917 complete Point(x: 1812.0, y: 546.6809595349005) false nil false false 0
+STATE DEL305 pushback Point(x: 1117.32848, y: 292.10838) true Optional("DEL602") false true 34
+STATE MIL301 complete Point(x: 1812.0, y: 543.1527361285973) false nil false false 0
+STATE MIL302 complete Point(x: 1812.0, y: 543.1527361285973) false nil false false 0
+STATE MIL303 complete Point(x: 1812.0, y: 550.6726884981506) false nil false false 0
+SEED 17 TIME 1200 COMPLETE 7 LOSSES 0
+PENDING DEL602 G15 Pushback idle 1200 block none cross none recovery false pos 1144 294 lineupRemaining 0.0 onAssignedStrip false underTow true
+PENDING DEL305 G12 Pushback idle 1200 block none cross none recovery false pos 1117 292 lineupRemaining 0.0 onAssignedStrip false underTow true
+PERFORMANCE START checks
+RUN:ArrivalAndClimbChecks
+PASS:initial arrivals have automatic approaches; player can hold and reassign runway
+PASS:runway reassignment climbs gradually before joining the new approach
+PASS:departure scale grows gradually over successive climb frames
+PERFORMANCE START checks
+RUN:BlockedLandingExitChecks
+PERFORMANCE START checks
+RUN:CongestionRoutingChecks
+PASS:runway 0 end 0.08 uses lower-congestion connected alternative
+PASS:runway 0 end 0.92 uses lower-congestion connected alternative
+PASS:runway 3 end 0.08 uses lower-congestion connected alternative
+PASS:runway 3 end 0.92 uses lower-congestion connected alternative
+PASS:congestion-aware initial routes use traced alternatives near runway ends
+PERFORMANCE START checks
+RUN:ContinuousArrivalChecks
+PASS:occupied stands allow continuous arrivals; interval decreases to configured floor; every arrival has an approach
+PERFORMANCE START checks
+RUN:CrowdedTowRecoveryChecks
+PASS:third aircraft blocks initial tow; attached tug replans without teleport and reaches another passing area; clear bypass exceeds400units
+PASS:forward connected route beats immediate180degree reversal
+PERFORMANCE START checks
+RUN:DepartureHoldClearanceChecks
+PASS:8 model/runway departure holds remain fully outside runway at16headings, clear landing wings, and connect to taxi/lineup paths
+PERFORMANCE START checks
+RUN:DirectNorthLandingExitChecks
+PASS:WB-NAVY/WB-TRI/WB-SILV use north-side exit; actual WB-SILV rollout to taxi never detours south or teleports
+PERFORMANCE START checks
+RUN:LandingExitSelectionChecks
+EXIT 0 destination Point(x: 1117.32848, y: 292.10838) crossings 0 -> 0
+EXIT 0 destination Point(x: 718.51, y: 522.22701) crossings 1 -> 0
+EXIT 3 destination Point(x: 1117.32848, y: 292.10838) crossings 1 -> 1
+EXIT 3 destination Point(x: 718.51, y: 522.22701) crossings 0 -> 0
+PASS:destination-aware exits do not add crossings; crossing approval preserves route; sharp reversal turns before translating
+PERFORMANCE START checks
+RUN:LocalTrafficFollowingChecks
+PASS:distant occupied destination permits progress; nearby blocker stops follower; clearing resumes movement
+PASS:parked/servicing/crashed/retired opponents and remote unfinished tows cannot leave stale traffic holds
+PASS:services, parked, queued and awaiting-tug states clear obsolete traffic labels
+PASS:stopped tow cannot reserve an empty future corridor
+PERFORMANCE START checks
+RUN:PlayerTugRerouteChecks
+PASS:player chooses among multiple connected passing areas; only selected aircraft gets tug; destination preserved; no teleport
+PASS:dispatched tug arrives, attaches visibly at nose and actually tows selected aircraft
+PERFORMANCE START checks
+RUN:RunwayFootprintCollisionChecks
+PASS:landing/takeoff contact with on-strip footprint crashes both and closes runway; apron contact does not generate accident
+PERFORMANCE START checks
+RUN:StandAllocationAndRelocationChecks
+PASS:all widebodies excluded from western stands; northern compatibility and initial allocation validated
+RELOCATION ARRIVED 11 servicing Point(x: 1117.328480425195, y: 292.1083803598158)
+PASS:servicing widebody is towed to compatible stand with crossing authority, no teleport, and completes services afterward
+PERFORMANCE START checks
+RUN:AirportRenderingChecks
+sandbox_extension_issue_file_to_process failed for /var/folders/wx/fx1ct5bn2qn53jg5d15445v80000gp/T/atc-performance-5e4b93a1d610db79/PerformanceHarness.app: 1 (Operation not permitted)
+PASS:renderer loads package PNGs, independent image dimensions, stand names and runway labels for two simultaneous airports
+PERFORMANCE START checks
+RUN:CoreRenderingChecks
+sandbox_extension_issue_file_to_process failed for /var/folders/wx/fx1ct5bn2qn53jg5d15445v80000gp/T/atc-performance-5e4b93a1d610db79/PerformanceHarness.app: 1 (Operation not permitted)
+PASS:19gate rendering,12aircraft,49vehicles,red/green wing lights,altitude shadows,visual-only vibration,zoom and shift reset
+PERFORMANCE START checks
+RUN:LiveRenderingChecks
+sandbox_extension_issue_file_to_process failed for /var/folders/wx/fx1ct5bn2qn53jg5d15445v80000gp/T/atc-performance-5e4b93a1d610db79/PerformanceHarness.app: 1 (Operation not permitted)
+PASS:real SwiftUI window renders aircraft, advances display-clock simulation, pauses and resumes
+REGRESSIONS: {"AirportPackageChecks": true, "AirportRenderingChecks": true, "ArrivalAndClimbChecks": true, "BlockedLandingExitChecks": false, "CongestionRoutingChecks": true, "ContinuousArrivalChecks": true, "CoreRenderingChecks": true, "CrowdedTowRecoveryChecks": true, "DepartureHoldClearanceChecks": true, "DirectNorthLandingExitChecks": true, "GroundTrafficCompletionChecks": false, "GroundTrafficLifecycleChecks": true, "GroundTrafficPlannerChecks": false, "LandingExitSelectionChecks": true, "LiveRenderingChecks": true, "LocalTrafficFollowingChecks": true, "OperationalGraphChecks": true, "PlayerTugRerouteChecks": true, "RunwayFootprintCollisionChecks": true, "StandAllocationAndRelocationChecks": true}
+Regression failures: GroundTrafficPlannerChecks, GroundTrafficCompletionChecks, BlockedLandingExitChecks

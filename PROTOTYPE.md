@@ -45,6 +45,8 @@ xcodebuild -project AirTrafficControl.xcodeproj -scheme AirTrafficControl -desti
 xcodebuild -project AirTrafficControl.xcodeproj -scheme AirTrafficControl -destination 'generic/platform=iOS Simulator' -derivedDataPath build-ios CODE_SIGNING_ALLOWED=NO build
 ```
 
+To build and launch the macOS game from the terminal, run `./play.command` in the project root (or double-click it in Finder, or in VS Code use **Terminal → Run Task → Play Air Traffic Control**). Use `--skip-build` to relaunch the existing build and `--build-only` to build without launching.
+
 For physical iPhone installation select your device and development team in Xcode. No developer credentials/team were changed.
 
 ## Taxi safety and ATC runway authority

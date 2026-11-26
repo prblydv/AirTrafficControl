@@ -118,6 +118,12 @@ struct GroundTrafficPlan {
     func remainingRoute(at time:Double)->[Point] { legs.filter{$0.end>time+0.000001}.map(\.to) }
     func waiting(at time:Double)->Bool { !legs.contains{$0.start<=time && time<$0.end} && time<finish }
     func speed(at time:Double)->Double { legs.first{$0.start<=time && time<$0.end}?.speed(at:time) ?? 0 }
+    func shifted(by offset:Double)->GroundTrafficPlan {
+        guard abs(offset)>0.000001 else{return self}
+        return .init(owner:owner,revision:revision,phase:phase,start:start,initialHeading:initialHeading,legs:legs.map {
+            .init(from:$0.from,to:$0.to,start:$0.start+offset,end:$0.end+offset,heading:$0.heading,cruise:$0.cruise,acceleration:$0.acceleration,deceleration:$0.deceleration,entrySpeed:$0.entrySpeed,exitSpeed:$0.exitSpeed)
+        },horizon:horizon+offset)
+    }
 }
 
 /// Conservative swept convex footprints: an entire edge and its turn are held
@@ -372,5 +378,62 @@ enum GroundTrafficPlanner {
             }
         }
         return nil
+    }
+}
+
+/// Runs expensive safe-interval searches away from the main actor. Requests
+/// are serialized so several newly released aircraft do not saturate every
+/// core, while completed plans are collected by the simulation on a later
+/// frame and committed against fresh traffic state.
+final class BackgroundGroundTrafficPlanner: @unchecked Sendable {
+    enum Route {
+        case graph(RoadGraph,Point,fallback:[Point]?,constraints:RoadGraph?)
+        case authored([Point],RoadGraph?)
+    }
+    struct Result {
+        let owner:String
+        let token:Int
+        let snapshotTime:Double
+        let plan:GroundTrafficPlan?
+    }
+    private final class Work: @unchecked Sendable {
+        let owner:String,token:Int
+        let flight:Aircraft
+        let route:Route
+        let snapshot:GroundTrafficSnapshot
+        let delay:Double
+        let planner:BackgroundGroundTrafficPlanner
+        init(owner:String,token:Int,flight:Aircraft,route:Route,snapshot:GroundTrafficSnapshot,delay:Double,planner:BackgroundGroundTrafficPlanner) {
+            self.owner=owner;self.token=token;self.flight=flight;self.route=route;self.snapshot=snapshot;self.delay=delay;self.planner=planner
+        }
+        func run() {
+            let plan=BackgroundGroundTrafficPlanner.calculate(flight:flight,route:route,snapshot:snapshot,delay:delay)
+            planner.finish(.init(owner:owner,token:token,snapshotTime:snapshot.now,plan:plan))
+        }
+    }
+    private let queue=DispatchQueue(label:"AirTrafficControl.ground-planning",qos:.userInitiated)
+    private let lock=NSLock()
+    private var completed:[Result]=[]
+    static func calculate(flight:Aircraft,route:Route,snapshot:GroundTrafficSnapshot,delay:Double=0)->GroundTrafficPlan? {
+        if delay>0 {Thread.sleep(forTimeInterval:delay)}
+        switch route {
+        case .graph(let graph,let target,let fallback,let constraints):
+            return GroundTrafficPlanner.plan(flight:flight,graph:graph,target:target,snapshot:snapshot) ?? fallback.flatMap {
+                GroundTrafficPlanner.plan(flight:flight,route:$0,snapshot:snapshot,constraints:constraints)
+            }
+        case .authored(let path,let constraints):
+            return GroundTrafficPlanner.plan(flight:flight,route:path,snapshot:snapshot,constraints:constraints)
+        }
+    }
+    func submit(owner:String,token:Int,flight:Aircraft,route:Route,snapshot:GroundTrafficSnapshot,delay:Double=0) {
+        let work=Work(owner:owner,token:token,flight:flight,route:route,snapshot:snapshot,delay:delay,planner:self)
+        queue.async {work.run()}
+    }
+    private func finish(_ result:Result) {
+        lock.lock();completed.append(result);lock.unlock()
+    }
+    func drain()->[Result] {
+        lock.lock();defer{lock.unlock()}
+        let result=completed;completed.removeAll(keepingCapacity:true);return result
     }
 }

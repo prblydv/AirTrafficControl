@@ -1,6 +1,47 @@
 import SwiftUI
 import SpriteKit
 
+/// Keep the native display loop independent of SwiftUI's dashboard updates.
+/// Always draw one initial frame, then pause only after SpriteKit presents it.
+@MainActor struct GameSceneView {
+    let scene:AirportScene
+    let isRunning:Bool
+    let presentationRevision:Int
+    let selectedID:String?
+    private func configure(_ view:SKView) {
+        view.preferredFramesPerSecond=60
+        if view.scene !== scene {scene.resetDisplayClock();view.presentScene(scene)}
+        if view.isPaused {view.isPaused=false}
+    }
+}
+#if os(macOS)
+@MainActor final class GameSKView:SKView {
+    private var gestureMagnification=1.0
+    override func magnify(with event:NSEvent) {
+        applyMagnification(Double(event.magnification),phase:event.phase,location:convert(event.locationInWindow,from:nil))
+    }
+    func applyMagnification(_ delta:Double,phase:NSEvent.Phase,location:CGPoint) {
+        guard let scene=scene as? AirportScene,bounds.width>0,bounds.height>0 else{return}
+        if phase.contains(.began) {gestureMagnification=1;scene.endPinch()}
+        gestureMagnification=max(0.01,gestureMagnification+delta)
+        let y=Double(location.y/bounds.height)
+        scene.pinch(magnification:gestureMagnification,anchor:Point(x:Double(location.x/bounds.width),y:isFlipped ? y:1-y))
+        if phase.contains(.ended) || phase.contains(.cancelled) {scene.endPinch();gestureMagnification=1}
+    }
+}
+extension GameSceneView:NSViewRepresentable {
+    func makeNSView(context:Context)->SKView {let view=GameSKView();configure(view);return view}
+    func updateNSView(_ view:SKView,context:Context) {configure(view)}
+    static func dismantleNSView(_ view:SKView,coordinator:()) {view.isPaused=true;view.presentScene(nil)}
+}
+#else
+extension GameSceneView:UIViewRepresentable {
+    func makeUIView(context:Context)->SKView {let view=SKView();configure(view);return view}
+    func updateUIView(_ view:SKView,context:Context) {configure(view)}
+    static func dismantleUIView(_ view:SKView,coordinator:()) {view.isPaused=true;view.presentScene(nil)}
+}
+#endif
+
 struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var simulation: Simulation
@@ -12,7 +53,8 @@ struct ContentView: View {
     private let mint=Color(red:0.62,green:0.77,blue:0.69)
     private let panel=Color(red:0.075,green:0.12,blue:0.14)
     init() {
-        let sim=Simulation()
+        let sim=Simulation(plansGroundTrafficInBackground:true)
+        sim.followsAssignedGroundRoutes=true
 #if os(macOS) && DEBUG
         let edit=ProcessInfo.processInfo.arguments.contains("--route-editor")
         if edit { sim.showBriefing=false }
@@ -21,6 +63,7 @@ struct ContentView: View {
         _simulation=State(initialValue:sim); _scene=State(initialValue:AirportScene(simulation:sim))
     }
     var body: some View {
+        let _=simulation.presentationRevision
         GeometryReader { geometry in
             VStack(spacing:0) {
                 header
@@ -38,13 +81,6 @@ struct ContentView: View {
             }.background(Color(red:0.045,green:0.075,blue:0.09))
         }
         .preferredColorScheme(.dark)
-        .task {
-            var previous=Date()
-            while !Task.isCancelled {
-                do { try await Task.sleep(for:.milliseconds(33)) } catch { return }
-                let now=Date(); simulation.tick(min(now.timeIntervalSince(previous),0.1)); previous=now
-            }
-        }
 #if os(macOS) && DEBUG
         .sheet(isPresented:$showRouteEditor) { RouteEditorView(backgroundImage:Image(nsImage:NSImage(contentsOf:simulation.airportPackage.backgroundURL)!),document:RoutingOverrides.load("draft-routes.json",airportID:simulation.airport.identity.id) ?? simulation.surface.routes,surface:simulation.surface,onApply:{ simulation.reset();simulation.startLive() }) }
 #endif
@@ -73,10 +109,13 @@ struct ContentView: View {
     }
     private var airport: some View {
         ZStack(alignment:.bottomLeading) {
-            SpriteView(scene:scene,preferredFramesPerSecond:30)
+            GameSceneView(scene:scene,isRunning:simulation.running,presentationRevision:simulation.presentationRevision,selectedID:simulation.selectedID)
+                .frame(maxWidth:.infinity,maxHeight:.infinity)
+#if !os(macOS)
                 .simultaneousGesture(MagnifyGesture().onChanged { value in
                     scene.pinch(magnification:Double(value.magnification),anchor:Point(x:value.startAnchor.x,y:value.startAnchor.y))
                 }.onEnded { _ in scene.endPinch() })
+#endif
                 .simultaneousGesture(DragGesture(minimumDistance:8).onChanged { value in
                     scene.dragMap(translation:Point(x:value.translation.width,y:value.translation.height))
                 }.onEnded { _ in scene.endDrag() })
@@ -113,8 +152,28 @@ struct ContentView: View {
                 if let waiting=a.groundWaitingState {
                     let queue=a.departureQueuePosition.map{" · Queue \($0)"} ?? ""
                     Text(waiting.rawValue+queue).font(.caption).foregroundStyle(.orange)
+                    if a.waitingForTraffic,let blocker=a.blockedBy {Text("Traffic ahead · \(blocker)").font(.caption2).foregroundStyle(.orange)}
                 }
                 if a.readyToDepart { Text("↑ READY FOR PUSHBACK · \(simulation.surface.gates[a.stand].name)").font(.caption).foregroundStyle(mint) }
+                if [.parked,.servicing,.gateWait].contains(a.phase) || a.towRelocationStand != nil {
+                    let stands=simulation.standRelocationOptions(for:a)
+                    ForEach(stands,id:\.self) { stand in
+                        Button("Tug relocate → \(simulation.surface.gates[stand].name)") {simulation.relocateSelectedByTug(to:stand)}.buttonStyle(.bordered).tint(.orange)
+                    }
+                    if stands.isEmpty {Text("No compatible free stand for tug relocation.").font(.caption2).foregroundStyle(.secondary)}
+                }
+                if a.recoveringGround {
+                    Text(a.underTow ? (a.waitingForTraffic ? "TUG ATTACHED · Blocked by \(a.blockedBy ?? "traffic")" : "TUG TOWING · Moving to passing area") : "TUG REQUESTED · Awaiting ground crew").font(.caption).foregroundStyle(.orange)
+                }
+                if let other=simulation.groundHeadOnTraffic(for:a) {
+                    Text("GROUND CONFLICT · \(other.id)").font(.caption).foregroundStyle(.orange)
+                    Text("Choose a passing area for this aircraft. A tug moves it aside, then it resumes its destination.").font(.caption2)
+                    let options=simulation.tugRerouteOptions(for:a)
+                    ForEach(options) { option in
+                        Button("Send tug · Passing area \(option.id+1)") {simulation.dispatchSelectedTug(to:option.target)}.buttonStyle(.bordered).tint(.orange)
+                    }
+                    if options.isEmpty {Text("No clear passing area for this aircraft. Select the opposing aircraft to see its options.").font(.caption2).foregroundStyle(.orange)}
+                }
                 let canClear=a.phase == .parked || a.phase == .queued || (!a.departure && [.inbound,.holding,.approach].contains(a.phase))
                 ForEach(simulation.clearanceRunways(for:a)) { r in
                     Button { simulation.clearSelected(to:r.id) } label: {

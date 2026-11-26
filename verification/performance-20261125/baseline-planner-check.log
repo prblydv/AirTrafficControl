@@ -1,0 +1,17 @@
+RUN:GroundTrafficPlannerChecks
+PASS:shared calibrated cruise, turning, reaction, acceleration and braking integrate to the exact endpoint
+PASS:unjoined geometric junction conflict produces an explicit scheduled wait
+PASS:opposing entry is refused without an exit; connected independent detour remains usable
+PASS:stopped aircraft do not disappear; changed traffic/graph rejects stale commits; removal permits replanning
+PASS:search reaches a later safe interval instead of keeping one distance label per node
+PASS:manual hold freezes position, cancels schedules, resumes from actual position; reset clears plans
+PASS:unrelated schedules keep their slots; changed held footprints cancel dependent plans; removed blockers release traffic
+PASS:stationary heading changes invalidate affected footprint reservations
+PASS:departure queue exposes positions, holds without polling, and advances after leader clearance
+PASS:one background search per movement; unrelated aircraft continues while a taxi slot is calculated
+Traceback (most recent call last):
+  File "/private/tmp/atc-performance-baseline.e4Rlv1/scripts/check_ground_traffic.py", line 34, in <module>
+    subprocess.run([str(executable)], cwd=root, check=True)
+  File "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py", line 528, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['/var/folders/wx/fx1ct5bn2qn53jg5d15445v80000gp/T/atc-traffic-checks-z7h4111n/checks']' died with <Signals.SIGTRAP: 5>.

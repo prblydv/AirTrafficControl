@@ -1,0 +1,130 @@
+RUN:GroundTrafficCompletionChecks
+PROGRESS 17 0 0 plans 0 searches 0 cancels 0
+STATE DEL451 pushback Point(x: 635.7195, y: 398.40032) false nil false false 34
+STATE DEL830 pushback Point(x: 622.92818, y: 457.86502) false nil false false 34
+STATE DEL116 pushback Point(x: 690.70512, y: 508.10029) false nil false false 34
+STATE DEL602 pushback Point(x: 1144.9572, y: 294.49263) false nil false false 34
+STATE DEL917 pushback Point(x: 1109.76895, y: 326.66622) false nil false false 34
+STATE DEL305 pushback Point(x: 1117.32848, y: 292.10838) false nil false false 34
+STATE MIL301 taxiing Point(x: 887.9, y: 402.0) false nil false false 89
+STATE MIL302 taxiing Point(x: 909.0, y: 407.0) false nil false false 85
+STATE MIL303 taxiing Point(x: 860.0, y: 398.0) false nil false false 68
+PROGRESS 17 99 1 plans 4 searches 104 cancels 12
+STATE DEL451 taxiing Point(x: 625.3588819555902, y: 355.7819844713606) true nil false false 256
+STATE DEL830 takeoffRoll Point(x: 783.8210385876765, y: 614.9433646183144) false nil false false 1
+STATE DEL116 complete Point(x: 1812.0, y: 812.846024130023) false nil false false 0
+STATE DEL602 pushback Point(x: 1144.9572, y: 294.49263) true nil false true 34
+STATE DEL917 lineup Point(x: 764.7205676300728, y: 277.7692528237871) false nil false false 232
+STATE DEL305 pushback Point(x: 1117.32848, y: 292.10838) true nil false true 34
+STATE MIL301 taxiing Point(x: 769.6002619117418, y: 354.009402414904) false nil false false 3
+STATE MIL302 climbing Point(x: 1481.4608573128967, y: 470.1132557486973) false nil false false 1
+STATE MIL303 taxiing Point(x: 622.9230328115789, y: 286.71240461307957) false nil false false 13
+PROGRESS 17 199 5 plans 1 searches 202 cancels 17
+STATE DEL451 complete Point(x: 1812.0, y: 543.1527361286203) false nil false false 0
+STATE DEL830 complete Point(x: 1812.0, y: 825.5492986770321) false nil false false 0
+STATE DEL116 complete Point(x: 1812.0, y: 812.846024130023) false nil false false 0
+STATE DEL602 pushback Point(x: 1144.9572, y: 294.49263) true Optional("DEL305") false true 34
+STATE DEL917 complete Point(x: 1812.0, y: 546.6809595349005) false nil false false 0
+STATE DEL305 pushback Point(x: 1117.32848, y: 292.10838) true Optional("DEL602") false true 34
+STATE MIL301 lineup Point(x: 702.1351348776358, y: 300.83341745871087) false nil false false 9
+STATE MIL302 complete Point(x: 1812.0, y: 543.1527361285973) false nil false false 0
+STATE MIL303 queued Point(x: 718.6765350389679, y: 248.0210413491513) false nil false false 0
+PROGRESS 17 299 7 plans 0 searches 300 cancels 19
+STATE DEL451 complete Point(x: 1812.0, y: 543.1527361286203) false nil false false 0
+STATE DEL830 complete Point(x: 1812.0, y: 825.5492986770321) false nil false false 0
+STATE DEL116 complete Point(x: 1812.0, y: 812.846024130023) false nil false false 0
+STATE DEL602 pushback Point(x: 1144.9572, y: 294.49263) true nil false true 34
+STATE DEL917 complete Point(x: 1812.0, y: 546.6809595349005) false nil false false 0
+STATE DEL305 pushback Point(x: 1117.32848, y: 292.10838) true nil false true 34
+STATE MIL301 complete Point(x: 1812.0, y: 543.1527361285973) false nil false false 0
+STATE MIL302 complete Point(x: 1812.0, y: 543.1527361285973) false nil false false 0
+STATE MIL303 complete Point(x: 1812.0, y: 550.6726884981506) false nil false false 0
+PROGRESS 17 400 7 plans 0 searches 400 cancels 19
+STATE DEL451 complete Point(x: 1812.0, y: 543.1527361286203) false nil false false 0
+STATE DEL830 complete Point(x: 1812.0, y: 825.5492986770321) false nil false false 0
+STATE DEL116 complete Point(x: 1812.0, y: 812.846024130023) false nil false false 0
+STATE DEL602 pushback Point(x: 1144.9572, y: 294.49263) true nil false true 34
+STATE DEL917 complete Point(x: 1812.0, y: 546.6809595349005) false nil false false 0
+STATE DEL305 pushback Point(x: 1117.32848, y: 292.10838) true nil false true 34
+STATE MIL301 complete Point(x: 1812.0, y: 543.1527361285973) false nil false false 0
+STATE MIL302 complete Point(x: 1812.0, y: 543.1527361285973) false nil false false 0
+STATE MIL303 complete Point(x: 1812.0, y: 550.6726884981506) false nil false false 0
+PROGRESS 17 500 7 plans 0 searches 500 cancels 19
+STATE DEL451 complete Point(x: 1812.0, y: 543.1527361286203) false nil false false 0
+STATE DEL830 complete Point(x: 1812.0, y: 825.5492986770321) false nil false false 0
+STATE DEL116 complete Point(x: 1812.0, y: 812.846024130023) false nil false false 0
+STATE DEL602 pushback Point(x: 1144.9572, y: 294.49263) true Optional("DEL305") false true 34
+STATE DEL917 complete Point(x: 1812.0, y: 546.6809595349005) false nil false false 0
+STATE DEL305 pushback Point(x: 1117.32848, y: 292.10838) true Optional("DEL602") false true 34
+STATE MIL301 complete Point(x: 1812.0, y: 543.1527361285973) false nil false false 0
+STATE MIL302 complete Point(x: 1812.0, y: 543.1527361285973) false nil false false 0
+STATE MIL303 complete Point(x: 1812.0, y: 550.6726884981506) false nil false false 0
+PROGRESS 17 600 7 plans 0 searches 600 cancels 19
+STATE DEL451 complete Point(x: 1812.0, y: 543.1527361286203) false nil false false 0
+STATE DEL830 complete Point(x: 1812.0, y: 825.5492986770321) false nil false false 0
+STATE DEL116 complete Point(x: 1812.0, y: 812.846024130023) false nil false false 0
+STATE DEL602 pushback Point(x: 1144.9572, y: 294.49263) true nil false true 34
+STATE DEL917 complete Point(x: 1812.0, y: 546.6809595349005) false nil false false 0
+STATE DEL305 pushback Point(x: 1117.32848, y: 292.10838) true nil false true 34
+STATE MIL301 complete Point(x: 1812.0, y: 543.1527361285973) false nil false false 0
+STATE MIL302 complete Point(x: 1812.0, y: 543.1527361285973) false nil false false 0
+STATE MIL303 complete Point(x: 1812.0, y: 550.6726884981506) false nil false false 0
+PROGRESS 17 700 7 plans 0 searches 700 cancels 19
+STATE DEL451 complete Point(x: 1812.0, y: 543.1527361286203) false nil false false 0
+STATE DEL830 complete Point(x: 1812.0, y: 825.5492986770321) false nil false false 0
+STATE DEL116 complete Point(x: 1812.0, y: 812.846024130023) false nil false false 0
+STATE DEL602 pushback Point(x: 1144.9572, y: 294.49263) true nil false true 34
+STATE DEL917 complete Point(x: 1812.0, y: 546.6809595349005) false nil false false 0
+STATE DEL305 pushback Point(x: 1117.32848, y: 292.10838) true nil false true 34
+STATE MIL301 complete Point(x: 1812.0, y: 543.1527361285973) false nil false false 0
+STATE MIL302 complete Point(x: 1812.0, y: 543.1527361285973) false nil false false 0
+STATE MIL303 complete Point(x: 1812.0, y: 550.6726884981506) false nil false false 0
+PROGRESS 17 800 7 plans 0 searches 800 cancels 19
+STATE DEL451 complete Point(x: 1812.0, y: 543.1527361286203) false nil false false 0
+STATE DEL830 complete Point(x: 1812.0, y: 825.5492986770321) false nil false false 0
+STATE DEL116 complete Point(x: 1812.0, y: 812.846024130023) false nil false false 0
+STATE DEL602 pushback Point(x: 1144.9572, y: 294.49263) true Optional("DEL305") false true 34
+STATE DEL917 complete Point(x: 1812.0, y: 546.6809595349005) false nil false false 0
+STATE DEL305 pushback Point(x: 1117.32848, y: 292.10838) true Optional("DEL602") false true 34
+STATE MIL301 complete Point(x: 1812.0, y: 543.1527361285973) false nil false false 0
+STATE MIL302 complete Point(x: 1812.0, y: 543.1527361285973) false nil false false 0
+STATE MIL303 complete Point(x: 1812.0, y: 550.6726884981506) false nil false false 0
+PROGRESS 17 900 7 plans 0 searches 900 cancels 19
+STATE DEL451 complete Point(x: 1812.0, y: 543.1527361286203) false nil false false 0
+STATE DEL830 complete Point(x: 1812.0, y: 825.5492986770321) false nil false false 0
+STATE DEL116 complete Point(x: 1812.0, y: 812.846024130023) false nil false false 0
+STATE DEL602 pushback Point(x: 1144.9572, y: 294.49263) true nil false true 34
+STATE DEL917 complete Point(x: 1812.0, y: 546.6809595349005) false nil false false 0
+STATE DEL305 pushback Point(x: 1117.32848, y: 292.10838) true nil false true 34
+STATE MIL301 complete Point(x: 1812.0, y: 543.1527361285973) false nil false false 0
+STATE MIL302 complete Point(x: 1812.0, y: 543.1527361285973) false nil false false 0
+STATE MIL303 complete Point(x: 1812.0, y: 550.6726884981506) false nil false false 0
+PROGRESS 17 1000 7 plans 0 searches 1000 cancels 19
+STATE DEL451 complete Point(x: 1812.0, y: 543.1527361286203) false nil false false 0
+STATE DEL830 complete Point(x: 1812.0, y: 825.5492986770321) false nil false false 0
+STATE DEL116 complete Point(x: 1812.0, y: 812.846024130023) false nil false false 0
+STATE DEL602 pushback Point(x: 1144.9572, y: 294.49263) true nil false true 34
+STATE DEL917 complete Point(x: 1812.0, y: 546.6809595349005) false nil false false 0
+STATE DEL305 pushback Point(x: 1117.32848, y: 292.10838) true nil false true 34
+STATE MIL301 complete Point(x: 1812.0, y: 543.1527361285973) false nil false false 0
+STATE MIL302 complete Point(x: 1812.0, y: 543.1527361285973) false nil false false 0
+STATE MIL303 complete Point(x: 1812.0, y: 550.6726884981506) false nil false false 0
+PROGRESS 17 1100 7 plans 0 searches 1097 cancels 19
+STATE DEL451 complete Point(x: 1812.0, y: 543.1527361286203) false nil false false 0
+STATE DEL830 complete Point(x: 1812.0, y: 825.5492986770321) false nil false false 0
+STATE DEL116 complete Point(x: 1812.0, y: 812.846024130023) false nil false false 0
+STATE DEL602 pushback Point(x: 1144.9572, y: 294.49263) true Optional("DEL305") false true 34
+STATE DEL917 complete Point(x: 1812.0, y: 546.6809595349005) false nil false false 0
+STATE DEL305 pushback Point(x: 1117.32848, y: 292.10838) true Optional("DEL602") false true 34
+STATE MIL301 complete Point(x: 1812.0, y: 543.1527361285973) false nil false false 0
+STATE MIL302 complete Point(x: 1812.0, y: 543.1527361285973) false nil false false 0
+STATE MIL303 complete Point(x: 1812.0, y: 550.6726884981506) false nil false false 0
+SEED 17 TIME 1200 COMPLETE 7 LOSSES 0
+PENDING DEL602 G15 Pushback idle 1200 block none cross none recovery false pos 1144 294 lineupRemaining 0.0 onAssignedStrip false underTow true
+PENDING DEL305 G12 Pushback idle 1200 block none cross none recovery false pos 1117 292 lineupRemaining 0.0 onAssignedStrip false underTow true
+Traceback (most recent call last):
+  File "/private/tmp/atc-performance-baseline.e4Rlv1/scripts/check_ground_traffic.py", line 34, in <module>
+    subprocess.run([str(executable)], cwd=root, check=True)
+  File "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py", line 528, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['/var/folders/wx/fx1ct5bn2qn53jg5d15445v80000gp/T/atc-traffic-checks-yedca4l2/checks']' died with <Signals.SIGTRAP: 5>.

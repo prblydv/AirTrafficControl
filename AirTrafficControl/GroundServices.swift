@@ -55,6 +55,7 @@ struct GroundVehicle: Identifiable {
     var routeUnavailable = false
     var retryAt = 0.0
     var base = 0
+    var baggageTractorID:Int?
     init(kind: ServiceKind, depot: Point, position: Point, id: Int? = nil) {
         self.kind = kind; self.depot = depot; self.position = position; self.id = id ?? kind.rawValue
     }
@@ -85,11 +86,22 @@ extension Simulation {
             var unit=GroundVehicle(kind:kind,depot:bay.position,position:bay.position,id:bay.id)
             unit.base=base;unit.heading=bay.heading;vehicles.append(unit)
         }
+        for tractor in vehicles.filter({$0.kind == .baggageTractor}) {attachBaggageCart(to:tractor)}
         for stand in surface.gates.indices {
             let depot=roads.tugBay(stand)
             var unit=GroundVehicle(kind:.pushback,depot:depot,position:depot,id:10000+stand)
             unit.base=100+stand;vehicles.append(unit)
         }
+    }
+    private func attachBaggageCart(to tractor:GroundVehicle) {
+        if let cart=vehicles.firstIndex(where:{$0.kind == .baggageCart && $0.base == tractor.base && $0.baggageTractorID == nil}) {
+            vehicles[cart].baggageTractorID=tractor.id
+            return
+        }
+        guard let bay=airport.serviceBases.first(where:{$0.id == tractor.base})?.bays.first(where:{$0.role == ServiceKind.baggageCart.rawValue}) else{return}
+        var cart=GroundVehicle(kind:.baggageCart,depot:bay.position,position:bay.position,id:(vehicles.map(\.id).max() ?? 0)+1)
+        cart.base=tractor.base;cart.heading=bay.heading;cart.baggageTractorID=tractor.id
+        vehicles.append(cart)
     }
     func requiredServices(for flight: Aircraft) -> Set<ServiceKind> {
         Set((airport.serviceProfiles[flight.operatingPurpose.rawValue] ?? []).compactMap(ServiceKind.init(rawValue:)))
@@ -127,6 +139,16 @@ extension Simulation {
         for kind in requiredServices(for: aircraft[index]).sorted(by: { $0.rawValue < $1.rawValue }) { enqueue(kind, target: target) }
         log("\(aircraft[index].id): at stand. Ground services requested.")
     }
+    func cancelStandServices(for flightID:String) {
+        for j in serviceTasks.indices where serviceTasks[j].target == .aircraft(flightID) && serviceTasks[j].kind != .pushback && ![.done,.returning,.cancelled].contains(serviceTasks[j].state) {
+            serviceTasks[j].state = .cancelled
+            for v in vehicles.indices where vehicles[v].taskID==serviceTasks[j].id {
+                vehicles[v].route=serviceRoute(from:vehicles[v].position,to:vehicles[v].depot,kind:vehicles[v].kind,taskID:vehicles[v].taskID)
+                vehicles[v].routeUnavailable=vehicles[v].route.isEmpty && vehicles[v].position.distance(to:vehicles[v].depot)>1
+                vehicles[v].retryAt=0
+            }
+        }
+    }
     func serviceSelected() {
         guard let i = aircraft.firstIndex(where: { $0.id == selectedID }), aircraft[i].phase == .parked else { return }
         guard !serviceTasks.contains(where: { $0.target == .aircraft(aircraft[i].id) && $0.kind != .pushback }) else { return }
@@ -150,7 +172,8 @@ extension Simulation {
         case .aircraft(let id):
             guard let flight = aircraft.first(where: { $0.id == id }), flight.phase != .crashed else { return nil }
             let p = flight.position
-            if kind == .pushback || kind == .followMe { return p }
+            if kind == .pushback {return tugAttachmentPoint(for:flight)}
+            if kind == .followMe { return p }
             let size=flight.model.length*flight.apparentScale
             let along:Double,side:Double
             switch kind {
@@ -169,10 +192,24 @@ extension Simulation {
             return graph.closestPoint(to:Point(x:p.x+cos(angle)*20,y:p.y+sin(angle)*20))
         }
     }
+    func tugAttachmentPoint(for flight:Aircraft)->Point {
+        surface.offset(flight.position,heading:flight.heading,along:flight.model.length*flight.apparentScale*0.5+3)
+    }
     func serviceRoute(from start:Point,to end:Point,kind:ServiceKind = .fire,taskID:UUID? = nil)->[Point] {
         var base=roads.graph(for:kind)
         base.split(at:start);base.split(at:end)
         let route=base.shortestPath(from:start,to:end,maximumAccessDistance:20,minimumWidth:kind.length*0.65)
+        if kind == .pushback && route.isEmpty && start.distance(to:end)>1 {
+            // Tugs may use the aircraft taxi lanes to reach a blocked apron
+            // aircraft; the short attachment spur stays within nose/bay reach.
+            let taxi=surface.taxiNetwork.shortestPath(from:start,to:end,maximumAccessDistance:30,minimumWidth:kind.length*0.65)
+            if !taxi.isEmpty {return taxi}
+            if let taskID,let task=serviceTasks.first(where:{$0.id==taskID}),case .aircraft(let id)=task.target,
+               let flight=aircraft.first(where:{$0.id==id}),end.distance(to:tugAttachmentPoint(for:flight))<0.1 {
+                let approach=base.shortestPath(from:start,to:flight.position,maximumAccessDistance:20,minimumWidth:kind.length*0.65)
+                if !approach.isEmpty {return approach+[end]}
+            }
+        }
         return route
     }
     /// Service vehicles have right of way in the simplified game model. They
@@ -253,6 +290,7 @@ extension Simulation {
                 let id=(vehicles.map(\.id).max() ?? 0)+1
                 var unit=GroundVehicle(kind:kind,depot:home.1,position:home.1,id:id);unit.base=home.0
                 vehicles.append(unit)
+                if kind == .baggageTractor {attachBaggageCart(to:unit)}
             }
         }
         for i in vehicles.indices where vehicles[i].kind != .baggageCart {
@@ -263,7 +301,7 @@ extension Simulation {
                 unit.routeUnavailable=unit.route.isEmpty && unit.position.distance(to:unit.depot)>1
                 if unit.routeUnavailable {unit.retryAt=elapsed+2;vehicles[i]=unit;continue}
             }
-            if unit.kind == .baggageTractor && unit.taskID == nil && vehicles.contains(where:{$0.kind == .baggageCart && $0.base == unit.base && $0.taskID != nil}) {vehicles[i]=unit;continue}
+            if unit.kind == .baggageTractor && unit.taskID == nil && vehicles.contains(where:{$0.kind == .baggageCart && $0.baggageTractorID == unit.id && $0.taskID != nil}) {vehicles[i]=unit;continue}
             if unit.taskID == nil {
                 let candidates = serviceTasks.indices.filter { serviceTasks[$0].kind == unit.kind && serviceTasks[$0].state == .queued && workAllowed(serviceTasks[$0]) }
                 // Tugs claim the nearest queued aircraft; remote tugs do not steal local work.
@@ -310,8 +348,8 @@ extension Simulation {
                 } else if task.kind == .pushback, case .aircraft(let flightID) = task.target, let f = aircraft.firstIndex(where: { $0.id == flightID }) {
                     serviceTasks[j].remaining -= dt
                     if serviceTasks[j].remaining <= 0 { serviceTasks[j].prepared = true; aircraft[f].underTow = true }
-                    let target = aircraft[f].position
-                    if unit.position.distance(to: target) > 0.05 { unit.heading = atan2(target.y-unit.position.y,target.x-unit.position.x) }
+                    let target = tugAttachmentPoint(for:aircraft[f])
+                    unit.heading=aircraft[f].heading
                     unit.position = target
                     if aircraft[f].phase != .pushback { aircraft[f].underTow = false; finishWork(j, vehicle: &unit) }
                 } else if task.kind == .baggageTractor {
@@ -366,7 +404,7 @@ extension Simulation {
     }
     private func updateBaggageCart(_ dt: Double) {
         for c in vehicles.indices where vehicles[c].kind == .baggageCart {
-            guard let t=vehicles.firstIndex(where:{$0.kind == .baggageTractor && $0.base==vehicles[c].base}) else{continue}
+            guard let t=vehicles.firstIndex(where:{$0.kind == .baggageTractor && $0.id == vehicles[c].baggageTractorID}) else{continue}
         var cart = vehicles[c]
         if let tractorID = vehicles[t].taskID, let tj = serviceTasks.firstIndex(where: { $0.id == tractorID }),
            let j = serviceTasks.firstIndex(where: { $0.kind == .baggageCart && $0.target == serviceTasks[tj].target && ![.done, .cancelled].contains($0.state) }) {
@@ -385,7 +423,10 @@ extension Simulation {
             if cart.route.isEmpty {cart.route=serviceRoute(from:cart.position,to:cart.depot,kind:cart.kind,taskID:cart.taskID)}
             cart.routeUnavailable=cart.route.isEmpty && cart.position.distance(to:cart.depot)>0.1
             moveVehicle(&cart,distance:45*dt)
-            if cart.position.distance(to:cart.depot)<0.1 {serviceTasks[j].state = .done;cart.taskID=nil}
+            if cart.position.distance(to:cart.depot)<0.1 {
+                if serviceTasks[j].state != .cancelled {serviceTasks[j].state = .done}
+                cart.taskID=nil
+            }
         }
         vehicles[c] = cart
         }
@@ -518,9 +559,16 @@ struct RoadGraph {
         let t=min(1,max(0,((p.x-a.x)*dx+(p.y-a.y)*dy)/max(0.0001,dx*dx+dy*dy)))
         return Point(x:a.x+t*dx,y:a.y+t*dy)
     }
-    func closestEdge(to p:Point)->Int? {edges.indices.min{projection(p,onto:edges[$0]).distance(to:p)<projection(p,onto:edges[$1]).distance(to:p)}}
+    func closestEdge(to p:Point)->Int? {
+        var best:Int?,distance=Double.infinity
+        for i in edges.indices {
+            let next=projection(p,onto:edges[i]).distance(to:p)
+            if next<distance {best=i;distance=next}
+        }
+        return best
+    }
     func closestPoint(to p:Point)->Point? {guard let i=closestEdge(to:p) else{return nil};return projection(p,onto:edges[i])}
-    func shortestPath(from start:Point,to end:Point,maximumAccessDistance:Double = .infinity,minimumWidth:Double=0,edgeDelay:((Point,Point,Double)->Double)?=nil)->[Point] {
+    func shortestPath(from start:Point,to end:Point,maximumAccessDistance:Double = .infinity,minimumWidth:Double=0,edgeDelay:((Point,Point,Double)->Double)?=nil,initialHeading:Double?=nil,turnPenalty:Double=0)->[Point] {
         var graph=self
         graph.edges=graph.edges.filter{$0.fits(minimumWidth)}
         guard let si=graph.attach(start,maximumAccessDistance:maximumAccessDistance),let ei=graph.attach(end,maximumAccessDistance:maximumAccessDistance) else{return []}
@@ -550,7 +598,21 @@ struct RoadGraph {
                 return route
             }
             for (v,edge,d) in adjacency[u] where graph.canTurn(incoming:label.key.edge,outgoing:edge,at:u) {
-                let next=cost+d+max(0,edgeDelay?(graph.nodes[u],graph.nodes[v],cost) ?? 0),key=Key(node:v,edge:edge)
+                var turning=0.0
+                let outgoing=atan2(graph.nodes[v].y-graph.nodes[u].y,graph.nodes[v].x-graph.nodes[u].x)
+                let incoming:Double?
+                if let parent=label.parent {
+                    let prior=graph.nodes[labels[parent].key.node]
+                    // A tiny projection spur from a rounded exit is not the
+                    // aircraft's incoming direction along the taxiway.
+                    if graph.nodes[u].distance(to:prior)<2 && labels[parent].parent==nil {incoming=initialHeading}
+                    else {incoming=atan2(graph.nodes[u].y-prior.y,graph.nodes[u].x-prior.x)}
+                } else {incoming=initialHeading}
+                if let incoming,turnPenalty>0 {
+                    let angle=abs(atan2(sin(outgoing-incoming),cos(outgoing-incoming)))
+                    turning=angle*turnPenalty+(angle>2.1 ? turnPenalty*12:0)
+                }
+                let next=cost+d+turning+max(0,edgeDelay?(graph.nodes[u],graph.nodes[v],cost) ?? 0),key=Key(node:v,edge:edge)
                 if next<(best[key] ?? .infinity) {best[key]=next;labels.append(.init(key:key,parent:index,cost:next));push((labels.count-1,next))}
             }
         }

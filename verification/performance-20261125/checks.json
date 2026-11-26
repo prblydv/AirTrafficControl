@@ -1,0 +1,22 @@
+{
+  "OperationalGraphChecks": true,
+  "AirportPackageChecks": true,
+  "GroundTrafficPlannerChecks": false,
+  "GroundTrafficLifecycleChecks": true,
+  "GroundTrafficCompletionChecks": false,
+  "ArrivalAndClimbChecks": true,
+  "BlockedLandingExitChecks": false,
+  "CongestionRoutingChecks": true,
+  "ContinuousArrivalChecks": true,
+  "CrowdedTowRecoveryChecks": true,
+  "DepartureHoldClearanceChecks": true,
+  "DirectNorthLandingExitChecks": true,
+  "LandingExitSelectionChecks": true,
+  "LocalTrafficFollowingChecks": true,
+  "PlayerTugRerouteChecks": true,
+  "RunwayFootprintCollisionChecks": true,
+  "StandAllocationAndRelocationChecks": true,
+  "AirportRenderingChecks": true,
+  "CoreRenderingChecks": true,
+  "LiveRenderingChecks": true
+}

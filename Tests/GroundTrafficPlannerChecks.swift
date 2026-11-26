@@ -154,6 +154,39 @@ import Foundation
         precondition(departureQueue.aircraft[1].position.distance(to:heldPosition)>1,"follower did not advance after leader clearance")
         print("PASS:departure queue exposes positions, holds without polling, and advances after leader clearance")
 
+        let background=Simulation(seed:9,continuousTraffic:false,plansGroundTrafficInBackground:true)
+        var moving=flight("MOVING",Point(x:400,y:100));moving.route=[Point(x:500,y:100)]
+        background.aircraft=[moving];background.running=true
+        for _ in 0..<100 where background.groundTrafficPlans["MOVING"]==nil {background.tick(0.1);usleep(1_000)}
+        precondition(background.groundTrafficPlans["MOVING"] != nil,"background fixture did not receive its initial plan")
+        let movingStart=background.aircraft[0].position
+        var calculating=flight("CALCULATING",Point(x:100,y:100));calculating.route=[Point(x:100,y:200)]
+        background.aircraft.append(calculating);background.groundTrafficPlanningTestDelay=0.2
+        background.tick(0.1)
+        let submitted=background.groundTrafficSearches
+        precondition(submitted==2,"expected exactly one search per aircraft, got \(submitted)")
+        for _ in 0..<5 {background.tick(0.1);usleep(10_000)}
+        precondition(background.groundTrafficSearches==submitted,"pending aircraft submitted duplicate planner work")
+        precondition(background.groundTrafficPlans["CALCULATING"]==nil,"delayed search unexpectedly completed during the observation window")
+        precondition(background.aircraft[0].position.distance(to:movingStart)>0.1,"unrelated aircraft stopped while another slot was calculated")
+        for _ in 0..<100 where background.groundTrafficPlans["CALCULATING"]==nil {background.tick(0.1);usleep(5_000)}
+        precondition(background.groundTrafficPlans["CALCULATING"] != nil,"background plan was not committed")
+        print("PASS:one background search per movement; unrelated aircraft continues while a taxi slot is calculated")
+
+        let clearance=Simulation(seed:17,continuousTraffic:false,plansGroundTrafficInBackground:true)
+        let departure=clearance.aircraft.first(where:{$0.departure})!
+        clearance.aircraft=[departure]
+        clearance.selectedID=departure.id
+        clearance.clearSelected(to:clearance.clearanceRunways(for:departure)[0].id)
+        precondition(clearance.groundTrafficSearches==1,"clearance did not submit exactly one background taxi search")
+        for _ in 0..<2000 {
+            clearance.tick(0.1);usleep(1_000)
+            if clearance.selected?.phase == .taxiing && clearance.groundTrafficPlans[departure.id] != nil {break}
+        }
+        precondition(clearance.selected?.phase == .taxiing && clearance.groundTrafficPlans[departure.id] != nil,"clearance plan was not reused after tug release")
+        precondition(clearance.groundTrafficSearches==1,"tug release repeated the clearance taxi search")
+        print("PASS:clearance responds before planning and tug release reuses the single background search")
+
 
     }
 }

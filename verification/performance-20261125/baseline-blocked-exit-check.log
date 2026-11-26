@@ -1,0 +1,7 @@
+RUN:BlockedLandingExitChecks
+Traceback (most recent call last):
+  File "/private/tmp/atc-performance-baseline.e4Rlv1/scripts/check_ground_traffic.py", line 34, in <module>
+    subprocess.run([str(executable)], cwd=root, check=True)
+  File "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py", line 528, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['/var/folders/wx/fx1ct5bn2qn53jg5d15445v80000gp/T/atc-traffic-checks-z5oimlcn/checks']' died with <Signals.SIGTRAP: 5>.
